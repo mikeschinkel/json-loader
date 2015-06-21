@@ -38,7 +38,7 @@ namespace JSON_Loader {
 		 * @param string $root_class
 		 * @param string $filepath
 		 * @param bool|Logger $logger
-		 *
+		 * @return Object
 		 */
 		static function load( $root_class, $filepath, $logger = false ) {
 
@@ -436,7 +436,7 @@ namespace JSON_Loader {
 		/**
 		 * @param Object $object
 		 *
-		 * @return mixed[]
+		 * @return Object[]|mixed[]
 		 */
 		static function get_properties( $object ) {
 
@@ -446,7 +446,7 @@ namespace JSON_Loader {
 
 			} else {
 
-				$state = static::get_state( (Object)$object );
+				$state = static::get_state( $object );
 
 				$properties = $state->data;
 
