@@ -27,7 +27,7 @@ namespace JSON_Loader {
 		 */
 		function __construct( $data, $parent = false, $args = array() ) {
 
-			$state = Loader::parse_class_header( (Object)$this, get_class( $this ) );
+			$state = Loader::parse_class_header( $this, get_class( $this ) );
 
 			$data = Loader::set_object_defaults( $state->schema, $data );
 
@@ -40,7 +40,7 @@ namespace JSON_Loader {
 				} else {
 
 					$state->data[ $property_name ] = Loader::instantiate_value(
-						(Object)$this,
+						$this,
 						$state->schema[ $property_name ],
 						$state->namespace,
 						$property_value
@@ -50,7 +50,7 @@ namespace JSON_Loader {
 
 			}
 
-			Loader::set_state( (Object)$this, $state );
+			Loader::set_state( $this, $state );
 
 			parent::__construct( $args );
 
@@ -65,15 +65,16 @@ namespace JSON_Loader {
 
 			$value = null;
 
-			$state = Loader::get_state( (Object)$this );
+			$state = Loader::get_state( $this );
 
-			if ( isset( $state->schema[ $property_name ] ) && ! is_null( $state->data[ $property_name ] ) ) {
+			if ( method_exists( $this, $property_name ) && is_callable( $callable = array( $this, $property_name ) ) ) {
+
+				$value = call_user_func( $callable, $state->data[ $property_name ] );
+				$state->data[ $property_name ] = $value;
+
+			} else if ( isset( $state->schema[ $property_name ] ) && ! is_null( $state->data[ $property_name ] ) ) {
 
 				$value = $state->data[ $property_name ];
-
-			} else if ( method_exists( $state, $property_name ) ) {
-
-				$value = $state->data[ $property_name ] = call_user_func( array( $state, $property_name ) );
 
 			} else if ( isset( $state->extra_args[ $property_name ] ) ) {
 
