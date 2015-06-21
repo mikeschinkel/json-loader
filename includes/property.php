@@ -53,6 +53,11 @@ namespace JSON_Loader {
 		var $parent;
 
 		/**
+		 * @var mixed Used by Validator
+		 */
+		var $value;
+
+		/**
 		 * @param string $property_name
 		 * @param string|string[]|Type|Type[] $types
 		 * @param string $namespace
