@@ -112,7 +112,7 @@ namespace JSON_Loader {
 
 				$valid = static::validate_object( $property->value, $level );
 
-			} else if ( $property->required ) {
+			} else if ( $property->required && empty( $property->value ) ) {
 
 				$error_msg = get_class( $property->parent ) . "->{$property->property_name} is required";
 

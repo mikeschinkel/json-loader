@@ -17,6 +17,9 @@ namespace JSON_Loader {
 	 * and/or transform the property value without having to reserve any method names.
 	 *
 	 * @package JSON_Loader
+	 *
+	 * @property Object $parent
+	 *
 	 */
 	class Object extends Base {
 
@@ -27,7 +30,7 @@ namespace JSON_Loader {
 		 */
 		function __construct( $data, $parent = false, $args = array() ) {
 
-			$state = Loader::parse_class_header( $this, get_class( $this ) );
+			$state = Loader::parse_class_header( $this, $parent );
 
 			$data = Loader::set_object_defaults( $state->schema, $data );
 
@@ -57,30 +60,42 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string $property_name
+		 * @param string $property
 		 *
 		 * @return mixed|null
 		 */
-		function __get( $property_name ) {
+		function __get( $property ) {
 
 			$value = null;
 
 			$state = Loader::get_state( $this );
 
-			if ( method_exists( $this, $property_name ) && is_callable( $callable = array( $this, $property_name ) ) ) {
+			if ( 'parent' == $property ) {
 
-				$value = call_user_func( $callable, $state->data[ $property_name ] );
-				$state->data[ $property_name ] = $value;
+				$value = $state->parent;
 
-			} else if ( isset( $state->schema[ $property_name ] ) && ! is_null( $state->data[ $property_name ] ) ) {
+			} else if ( method_exists( $this, $property ) && is_callable( $callable = array( $this, $property ) ) ) {
 
-				$value = $state->data[ $property_name ];
+				$value = call_user_func( $callable, $state->data[ $property ] );
+				$state->data[ $property ] = $value;
 
-			} else if ( isset( $state->extra_args[ $property_name ] ) ) {
+			} else if ( isset( $state->schema[ $property ] ) && ! is_null( $state->data[ $property ] ) ) {
 
-				$value = $state->extra_args[ $property_name ];
+				$value = $state->data[ $property ];
+
+			} else if ( isset( $state->extra_args[ $property ] ) ) {
+
+				$value = $state->extra_args[ $property ];
+
+			} else if ( ! is_null( $state->parent ) ) {
+
+				/**
+				 * Bubble up...
+				 */
+				$value = $state->parent->__get( $property );
 
 			}
+
 
 			return $value;
 

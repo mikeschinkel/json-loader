@@ -38,6 +38,7 @@ namespace JSON_Loader {
 		 * @param string $root_class
 		 * @param string $filepath
 		 * @param bool|Logger $logger
+		 *
 		 * @return Object
 		 */
 		static function load( $root_class, $filepath, $logger = false ) {
@@ -51,28 +52,29 @@ namespace JSON_Loader {
 			}
 			$json_string = static::load_file( $filepath );
 
-			$stdclass_object = static::load_json( $json_string );
+			$stdclass_object = static::load_json( $json_string, $filepath );
 
-			$data = new $root_class( $stdclass_object );
+			$object = new $root_class( $stdclass_object );
 
-			return $data;
+			return $object;
 
 		}
 
 		/**
 		 * @param string $json
+		 * @param string $filepath
 		 *
 		 * @return object
 		 */
-		private function load_json( $json ) {
+		private function load_json( $json, $filepath = false ) {
 
 			$data = (array) @json_decode( $json );
 
 			if ( 0 == count( $data ) ) {
 
-				if ( isset( $this->filepath ) ) {
+				if ( $filepath ) {
 
-					self::log_error( "The {$name} file {$this->filepath} has invalid syntax." );
+					self::log_error( "The {$name} file {$filepath} has invalid syntax." );
 
 				} else if ( empty( $json ) ) {
 
@@ -121,12 +123,14 @@ namespace JSON_Loader {
 		}
 
 		/**
+		 * @param Object $object
 		 * @param Object $parent
-		 * @param string $class_name
 		 *
 		 * @return State
 		 */
-		static function parse_class_header( $parent, $class_name ) {
+		static function parse_class_header( $object, $parent ) {
+
+			$class_name = get_class( $object );
 
 			$state = new State( $parent );
 
@@ -150,19 +154,19 @@ namespace JSON_Loader {
 
 					if ( preg_match( '#^\s+\*\s*@package\s+([^\s\n]+)#', $line, $match ) ) {
 
-						self::$namespaces[ $class_name ] = $state->namespace = $match[1];
+						self::$namespaces[ $class_name ] = $state->namespace = $match[ 1 ];
 
 					} else if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
 
 						list( $line, $type, $property_name ) = $match;
 
-						$args = array( 'description' => $match[3] );
+						$args = array( 'description' => $match[ 3 ] );
 
-						if ( isset( $match[6] ) ) {
+						if ( isset( $match[ 6 ] ) ) {
 
-							$subproperties = $match[6];
+							$subproperties = $match[ 6 ];
 
-							if ( isset( $match[7] ) && '}' !== $match[7] ) {
+							if ( isset( $match[ 7 ] ) && '}' !== $match[ 7 ] ) {
 
 								while ( false === strpos( $subproperties, '}' ) && count( $lines ) > ++ $index ) {
 
@@ -268,34 +272,6 @@ namespace JSON_Loader {
 
 		}
 
-		/**
-		 * @param string $class_name
-		 * @param string $namespace
-		 *
-		 * @return string
-		 */
-
-		static function get_qualified_class_name( $class_name, $namespace ) {
-
-			static $regex = '#^(\\\\)?WPLib_CLI\\\\(.*)$#';
-
-			$passed_class = $class_name;
-
-			$class_name = preg_match( $regex, $class_name, $match ) ? $match[2] : $class_name;
-
-			$class_name = false === strpos( $class_name, '\\' ) ? "\\{$namespace}\\{$class_name}" : $class_name;
-
-			if ( ! class_exists( $found = $class_name ) ) {
-
-				$found = null;
-
-				Loader::log_error( "Class {$passed_class} does not exist." );
-
-			}
-
-			return $found;
-
-		}
 
 		/**
 		 * @param Property[] $schema
@@ -435,10 +411,37 @@ namespace JSON_Loader {
 
 		/**
 		 * @param Object $object
+		 * @param string $property_name
+		 *
+		 * @return State $state
+		 */
+		static function has_state_property( $object, $property_name ) {
+
+			return property_exists( self::get_state( $object ), $property_name );
+
+		}
+		/**
+		 * @param Object $object
+		 * @param string $property_name
+		 *
+		 * @return State $state
+		 */
+		static function get_state_property( $object, $property_name ) {
+
+			$properties = self::get_state_properties( $object );
+
+			return isset( $properties[ $property_name ] )
+				? $properties[ $property_name ]
+				: null;
+
+		}
+
+		/**
+		 * @param Object $object
 		 *
 		 * @return Object[]|mixed[]
 		 */
-		static function get_properties( $object ) {
+		static function get_state_properties( $object ) {
 
 			if ( ! $object instanceof Object ) {
 
@@ -455,7 +458,6 @@ namespace JSON_Loader {
 			return $properties;
 
 		}
-
 
 	}
 
