@@ -50,6 +50,10 @@ namespace JSON_Loader {
 
 			$this->parent = $parent;
 
+			$this->schema = array();
+
+			$this->data = array();
+
 			parent::__construct( $args );
 
 		}

@@ -132,31 +132,23 @@ namespace JSON_Loader {
 
 			$class_name = get_class( $object );
 
-			$state = new State( $parent );
-
 			if ( ! isset( self::$schemas[ $class_name ] ) ) {
+
+				$state = new State( $parent );
 
 				$class_reflector = new \ReflectionClass( $class_name );
 
+				$state->namespace = $class_reflector->getNamespaceName();
+
+				self::$namespaces[ $class_name ] = $state->namespace;
+
 				$lines = explode( "\n", $class_reflector->getDocComment() );
-
-				$state->schema = array();
-
-				if ( ! isset( self::$namespaces[ $class_name ] ) ) {
-
-					self::$namespaces[ $class_name ] = false;
-
-				}
 
 				for ( $index = 0; count( $lines ) > $index; $index ++ ) {
 
 					$line = $lines[ $index ];
 
-					if ( preg_match( '#^\s+\*\s*@package\s+([^\s\n]+)#', $line, $match ) ) {
-
-						self::$namespaces[ $class_name ] = $state->namespace = $match[ 1 ];
-
-					} else if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
+					if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
 
 						list( $line, $type, $property_name ) = $match;
 
@@ -192,9 +184,11 @@ namespace JSON_Loader {
 
 				}
 
+				self::$schemas[ $class_name ] = $state;
+
 			}
 
-			return $state;
+			return self::$schemas[ $class_name ];
 
 		}
 
