@@ -174,7 +174,7 @@ namespace JSON_Loader {
 
 						}
 
-						$args['parent'] = $parent;
+						$args['parent'] = $object;
 
 						$property = new Property( $property_name, $type, $state->namespace, $args );
 
@@ -365,13 +365,6 @@ namespace JSON_Loader {
 
 					}
 
-			}
-			$classes = array(
-				'\WPLib_CLI\Post_Type',
-				'\WPLib_CLI\MV_Module_Filenames',
-			);
-			if ( is_object( $value ) && ! in_array( $class_name, $classes ) ) {
-				echo '';
 			}
 
 			return $value;

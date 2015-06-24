@@ -26,12 +26,17 @@ namespace JSON_Loader {
 		/**
 		 * @var array Subdirectories for a Generator
 		 */
-		var $subdirs = array();
+		var $dirs = array();
 
 		/**
 		 * @var \JSON_Loader\Object|array
 		 */
 		var $object;
+
+		/**
+		 * @var string
+		 */
+		var $property_name;
 
 		/**
 		 * @param Object $object
@@ -81,17 +86,27 @@ namespace JSON_Loader {
 
 			$generator->execute();
 
-			echo "Generated.";
-
 		}
-
 
 		/**
 		 * @param string $generator_slug
 		 * @param Object|array $value
-		 * @param string|bool $generator_class
+		 * @param array $args {
+		 *      @type string|bool $generator_class
+		 * }
 		 */
-		function register_generator( $generator_slug, $value, $generator_class = false ) {
+		function register_generator( $generator_slug, $value, $args = array() ) {
+
+			$args = array_merge( array(
+				'generator_class' => false,
+				'property_name' => $generator_slug,
+			), $args );
+
+			$generator_class =  $args[ 'generator_class' ];
+
+			unset( $args[ 'generator_class' ] );
+
+			$property_name = $args[ 'property_name' ];
 
 			if ( is_array( $value ) ) {
 
@@ -133,7 +148,7 @@ namespace JSON_Loader {
 
 					}
 
-					Loader::log_error( "None of theses generator classes exist for generator slug \"{$generator_slug}\":"
+					Loader::log_error( "None of theses generator classes exist for generator slug \"{$generator_slug}\" and property name \"{$property_name}\":"
 						. " [{$generator_class}], [{$try_class1}] nor [{$try_class1}]."
 					);
 
@@ -141,7 +156,7 @@ namespace JSON_Loader {
 
 			}
 
-			$this->generators[ $generator_slug ] = new $generator_class( $value );
+			$this->generators[ $generator_slug ] = new $generator_class( $value, $args );
 
 		}
 
@@ -155,17 +170,17 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string|array $subdirs
+		 * @param string|array $dirs
 		 */
-		function register_subdirs( $subdirs ) {
+		function register_dirs( $dirs ) {
 
-			if ( ! is_array( $subdirs ) ) {
+			if ( ! is_array( $dirs ) ) {
 
-				$subdirs = array( $subdirs );
+				$dirs = array( $dirs );
 
 			}
 
-			$this->subdirs[] = $subdirs;
+			$this->dirs = $dirs;
 
 		}
 
@@ -188,16 +203,18 @@ namespace JSON_Loader {
 			 */
 			call_user_func( $register_callable );
 
-			if ( count( $subdirs = $this->subdirs ) ) {
+			if ( count( $dirs = $this->dirs ) ) {
 
 				$properties = $this->get_state_properties();
 
 				/**
 				 * Make any subdirectories
 				 */
-				foreach( $subdirs as $subdir ) {
+				foreach( $dirs as $dir ) {
 
-					self::mkdir( $this->apply_file_template( $subdir, $properties ) );
+					$dir = $this->apply_file_template( $dir, $properties );
+
+					self::mkdir( $dir );
 
 				}
 
@@ -216,7 +233,12 @@ namespace JSON_Loader {
 
 				foreach( $generators as $generator_slug => $generator ) {
 
-					self::generate( $this->object->$generator_slug, $generator );
+					/**
+					 * @var Generator $generator
+					 */
+					$property_name = $generator->property_name;
+
+					self::generate( $this->object->$property_name, $generator );
 
 				}
 			}
@@ -224,7 +246,7 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string $path
+		 * @param bool|string $path
 		 * @return string
 		 */
 		function template_dir( $path = false ) {
@@ -244,25 +266,28 @@ namespace JSON_Loader {
 
 			$filepath = $this->apply_file_template( $file_template,  $this->get_state_properties() );
 
-			ob_start();
+			if ( ! is_file( $filepath ) ) {
 
-			$generator_slug =  static::generator_slug();
+				ob_start();
 
-			if ( ! is_file( $template_file = $this->template_dir( "{$generator_slug}.php" ) ) ) {
+				$generator_slug = static::generator_slug();
 
-				Loader::log_error( "Template file {$template_file} does not exist." );
+				if ( ! is_file( $template_file = $this->template_dir( "{$generator_slug}.php" ) ) ) {
+
+					Loader::log_error( "Template file {$template_file} does not exist." );
+
+				}
+				extract( array( $generator_slug => $this->object ), EXTR_SKIP );
+
+				unset( $file_template, $generator_slug );
+
+				require( $template_file );
+
+				$source = ob_get_clean();
+
+				file_put_contents( $filepath, $source );
 
 			}
-			extract( array( $generator_slug => $this->object ), EXTR_SKIP );
-
-			unset( $file_template, $generator_slug );
-
-			require( $template_file );
-
-			$source = ob_get_clean();
-
-			file_put_contents( $filepath, $source );
-
 
 		}
 
@@ -298,7 +323,9 @@ namespace JSON_Loader {
 
 			if ( preg_match_all( '#(.*?)\{([^\}]+)\}#', $file_template, $matches ) ) {
 
-				$root_properties = Loader::get_state( self::$root )->data;
+				$root_state = Loader::get_state( self::$root );
+
+				$root_properties = $root_state->data;
 
 				$messages = array();
 
@@ -372,9 +399,17 @@ namespace JSON_Loader {
 						$messages[] = str_replace( '{type}', 'object', $non_castable );
 					}
 
-					if (is_null( $parent_value ) ) {
+					if ( is_null( $parent_value ) ) {
 
-						echo '';
+						if ( $has_property ) {
+
+							$values[ $template_var ] = $this->object->$property_name;
+
+						} else if ( $has_root_property ) {
+
+							$values[ $template_var ] = self::$root->$property_name;
+
+						}
 
 					} else if ( $parent_value instanceof Object ) {
 

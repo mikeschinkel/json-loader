@@ -16,6 +16,58 @@ require( __DIR__ . '/includes/autoloader.php' );
 
 class JSON_Loader {
 
+	private static $_class_stack = array();
+
+	/**
+	 * @param object|string $class_name
+	 */
+	static function push_class( $class_name ) {
+
+		if ( ! is_object( $class_name ) ) {
+
+			self::$_class_stack[] = $class_name;
+
+		} else {
+
+			self::$_class_stack[] = get_class( $class_name );
+
+		}
+
+	}
+
+	/**
+	 * @return object
+	 */
+	static function pop_class() {
+
+		return count( self::$_class_stack ) ? array_pop( self::$_class_stack ) : null;
+
+	}
+	/**
+	 * @return array
+	 */
+	static function class_stack() {
+
+		return self::$_class_stack;
+
+	}
+
+	/**
+	 * @param object|string $default_class
+	 *
+	 * @return null|object
+	 */
+	static function top_class( $default_class = null ) {
+
+		if ( is_object( $default_class ) ) {
+
+			$default_class = get_class( $default_class );
+
+		}
+		return count( self::$_class_stack ) ? reset( self::$_class_stack ) : $default_class;
+
+	}
+
 	/**
 	 * @param object|string $object
 	 * @return string
@@ -69,15 +121,13 @@ class JSON_Loader {
 
 		$class_name = "\\{$namespace}\\{$class_name}";
 
-		if ( ! class_exists( $found = $class_name ) ) {
+		if ( ! class_exists( $class_name ) ) {
 
-			$found = null;
-
-			\JSON_Loader\Loader::log_error( "Class {$passed_class} does not exist." );
+			\JSON_Loader\Loader::log_error( "Class {$class_name} does not exist." );
 
 		}
 
-		return $found;
+		return $class_name;
 
 	}
 

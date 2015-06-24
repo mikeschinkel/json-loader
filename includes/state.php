@@ -26,6 +26,11 @@ namespace JSON_Loader {
 		var $data = array();
 
 		/**
+		 * @var array Boolean value to determine if a property has had its data method called and cached.
+		 */
+		var $cached = array();
+
+		/**
 		 * @var string The filepath of the JSON file, if loaded from a file
 		 */
 		var $filepath;
@@ -49,10 +54,6 @@ namespace JSON_Loader {
 		function __construct( $parent = null, $args = array() ) {
 
 			$this->parent = $parent;
-
-			$this->schema = array();
-
-			$this->data = array();
 
 			parent::__construct( $args );
 

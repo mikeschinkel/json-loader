@@ -66,6 +66,8 @@ namespace JSON_Loader {
 		 */
 		function __get( $property ) {
 
+			\JSON_Loader::push_class( $this );
+
 			$value = null;
 
 			$state = Loader::get_state( $this );
@@ -76,26 +78,39 @@ namespace JSON_Loader {
 
 			} else if ( method_exists( $this, $property ) && is_callable( $callable = array( $this, $property ) ) ) {
 
-				$value = call_user_func( $callable, $state->data[ $property ] );
-				$state->data[ $property ] = $value;
+				if ( ! array_key_exists( $property, $state->cached ) ) {
 
-			} else if ( isset( $state->schema[ $property ] ) && ! is_null( $state->data[ $property ] ) ) {
+					$state->cached[ $property ] = call_user_func( $callable, $state->data[ $property ] );
+
+				}
+				$value = $state->cached[ $property ];
+
+			} else if ( array_key_exists( $property, $state->schema ) && array_key_exists( $property, $state->data ) ) {
 
 				$value = $state->data[ $property ];
 
-			} else if ( isset( $state->extra_args[ $property ] ) ) {
+			} else if ( array_key_exists( $property, $state->extra_args ) ) {
 
 				$value = $state->extra_args[ $property ];
 
-			} else if ( ! is_null( $state->parent ) ) {
+			} else if ( $state->parent instanceof Object ) {
 
 				/**
 				 * Bubble up...
 				 */
 				$value = $state->parent->__get( $property );
 
+			} else {
+
+				$class_name = implode( ', ', \JSON_Loader::class_stack() );
+				if ( empty( $class_name ) ) {
+					$class_name = get_class( $this );
+				}
+				Loader::log_error( "There is no property \"{$property}\" in any of these class(es): {$class_name}." );
+
 			}
 
+			\JSON_Loader::pop_class();
 
 			return $value;
 
