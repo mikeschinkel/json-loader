@@ -67,7 +67,7 @@ namespace JSON_Loader {
 
 					$args[ 'base_type' ]  = 'array';
 					$args[ 'array_of' ]   = 'object';
-					$args[ 'class_name' ] = \JSON_Loader::get_qualified_class_name( $match[1], $namespace );
+					$args[ 'class_name' ] = \JSON_Loader::get_qualified_class_name( $match[1], $namespace ) ;
 
 				} else {
 

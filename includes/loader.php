@@ -15,7 +15,7 @@ namespace JSON_Loader {
 		static $logger;
 
 		/**
-		 * @var Object[]
+		 * @var Object[][]
 		 */
 		static $schemas = array();
 
@@ -132,63 +132,75 @@ namespace JSON_Loader {
 
 			$class_name = get_class( $object );
 
-			if ( ! isset( self::$schemas[ $class_name ] ) ) {
+			$hash = spl_object_hash( $object );
 
-				$state = new State( $parent );
+			if ( empty( self::$schemas[ $class_name ][ $hash ] ) ) {
 
-				$class_reflector = new \ReflectionClass( $class_name );
+				if ( isset( self::$schemas[ $class_name ] ) ) {
 
-				$state->namespace = $class_reflector->getNamespaceName();
+					$state = clone( reset( self::$schemas[ $class_name ] ) );
 
-				self::$namespaces[ $class_name ] = $state->namespace;
+					$state->parent = $parent;
 
-				$lines = explode( "\n", $class_reflector->getDocComment() );
+				} else {
 
-				for ( $index = 0; count( $lines ) > $index; $index ++ ) {
+					$state = new State( $parent );
 
-					$line = $lines[ $index ];
+					$class_reflector = new \ReflectionClass( $class_name );
 
-					if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
+					$state->namespace = $class_reflector->getNamespaceName();
 
-						list( $line, $type, $property_name ) = $match;
+					self::$namespaces[ $class_name ] = $state->namespace;
 
-						$args = array( 'description' => $match[ 3 ] );
+					$lines = explode( "\n", $class_reflector->getDocComment() );
 
-						if ( isset( $match[ 6 ] ) ) {
+					for ( $index = 0; count( $lines ) > $index; $index ++ ) {
 
-							$subproperties = $match[ 6 ];
+						$line = $lines[ $index ];
 
-							if ( isset( $match[ 7 ] ) && '}' !== $match[ 7 ] ) {
+						if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
 
-								while ( false === strpos( $subproperties, '}' ) && count( $lines ) > ++ $index ) {
+							list( $line, $type, $property_name ) = $match;
 
-									$subproperties .= preg_replace( '#^\s*\*\s*(@.*)#', '$1', $lines[ $index ] );
+							$args = array( 'description' => $match[3] );
+
+							if ( isset( $match[6] ) ) {
+
+								$subproperties = $match[6];
+
+								if ( isset( $match[7] ) && '}' !== $match[7] ) {
+
+									while ( false === strpos( $subproperties, '}' ) && count( $lines ) > ++ $index ) {
+
+										$subproperties .= preg_replace( '#^\s*\*\s*(@.*)#', '$1', $lines[ $index ] );
+
+									}
+
+									$subproperties = preg_replace( '#^(.*)\}#', '$1', $subproperties );
 
 								}
 
-								$subproperties = preg_replace( '#^(.*)\}#', '$1', $subproperties );
+								$args = array_merge( $args, self::parse_sub_properties( $subproperties, $type ) );
 
 							}
 
-							$args = array_merge( $args, self::parse_sub_properties( $subproperties, $type ) );
+							$args['parent'] = $object;
+
+							$property = new Property( $property_name, $type, $state->namespace, $args );
+
+							$state->schema[ $property_name ] = $property;
 
 						}
-
-						$args['parent'] = $object;
-
-						$property = new Property( $property_name, $type, $state->namespace, $args );
-
-						$state->schema[ $property_name ] = $property;
 
 					}
 
 				}
 
-				self::$schemas[ $class_name ] = $state;
+				self::$schemas[ $class_name ][ $hash ] = $state;
 
 			}
 
-			return self::$schemas[ $class_name ];
+			return self::$schemas[ $class_name ][ $hash ];
 
 		}
 
@@ -407,6 +419,7 @@ namespace JSON_Loader {
 			return property_exists( self::get_state( $object ), $property_name );
 
 		}
+
 		/**
 		 * @param Object $object
 		 * @param string $property_name
@@ -438,7 +451,7 @@ namespace JSON_Loader {
 
 				$state = static::get_state( $object );
 
-				$properties = $state->data;
+				$properties = $state->values;
 
 			}
 

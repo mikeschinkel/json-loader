@@ -159,6 +159,32 @@ class JSON_Loader {
 
 	}
 
+	/**
+	 * Replace dashes and spaces in input string with underscores.
+	 *
+	 * @param string $string_with_dashes
+	 *
+	 * @return string
+	 */
+	static function underscorify( $string_with_dashes ) {
+
+		return str_replace( array( '-', ' ' ), '_', $string_with_dashes );
+
+	}
+
+	/**
+	 * Replace underscores and spaces in input string with dashes.
+	 *
+	 * @param string $string_with_underscores
+	 *
+	 * @return string
+	 */
+	static function dashify( $string_with_underscores ) {
+
+		return str_replace( array( '_', ' ' ), '-', $string_with_underscores );
+
+	}
+
 }
 
 

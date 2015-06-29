@@ -23,10 +23,10 @@ namespace JSON_Loader {
 		/**
 		 * @var array Data values loaded from JSON
 		 */
-		var $data = array();
+		var $values = array();
 
 		/**
-		 * @var array Boolean value to determine if a property has had its data method called and cached.
+		 * @var array Boolean value to determine if a property has had its values method called and cached.
 		 */
 		var $cached = array();
 

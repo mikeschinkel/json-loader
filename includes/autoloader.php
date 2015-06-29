@@ -16,7 +16,7 @@ class Autoloader {
 
 		$class_name = preg_match( '#^(\\\\)?JSON_Loader\\\\(.*)$#', $class_name, $match ) ? $match[2] : $class_name;
 
-		if ( is_file( $class_file = __DIR__ . strtolower( str_replace( '_', '-', "/{$class_name}.php" ) ) ) ) {
+		if ( is_file( $class_file = __DIR__ . strtolower( \JSON_Loader::dashify( "/{$class_name}.php" ) ) ) ) {
 
 			require( $class_file );
 

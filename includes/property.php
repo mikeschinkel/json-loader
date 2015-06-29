@@ -132,7 +132,7 @@ namespace JSON_Loader {
 
 					$message = sprintf(
 						"Failed to load %s using %s value: %s.\n" .
-						"\nCorrrect the PHPDoc for %s or change the data in your JSON file.",
+						"\nCorrrect the PHPDoc for %s or change the values in your JSON file.",
 						(string)$type,
 						(string)$value_type,
 						$this->_as_string( $value ),

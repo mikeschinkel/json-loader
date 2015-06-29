@@ -69,7 +69,7 @@ namespace JSON_Loader {
 
 			foreach ( $state->schema as $property_name => $property ) {
 
-				$property->value = $state->data[ $property_name ];
+				$property->value = $state->values[ $property_name ];
 
 				if ( ! is_array( $property->value ) ) {
 

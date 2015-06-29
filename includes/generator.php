@@ -39,14 +39,37 @@ namespace JSON_Loader {
 		var $property_name;
 
 		/**
+		 * @var@var string
+		 */
+		var $element_slug;
+
+		/**
+		 * @var Generator
+		 */
+		var $parent;
+
+		/**
 		 * @param Object $object
+		 * @param Generator $parent
 		 * @param array $args
 		 */
-		function __construct( $object, $args = array() ) {
+		function __construct( $object, $parent, $args = array() ) {
+
+			$this->initialize( $object, $parent, $args );
+
+			parent::__construct( $args );
+		}
+
+		/**
+		 * @param Object $object
+		 * @param Generator $parent
+		 */
+		function initialize( $object, $parent ) {
 
 			$this->object = $object;
 
-			parent::__construct( $args );
+			$this->parent = $parent;
+
 
 		}
 
@@ -80,7 +103,7 @@ namespace JSON_Loader {
 				/**
 				 * @var Generator $generator
 				 */
-				$generator = new $generator_class( $object );
+				$generator = new $generator_class( $object, $generator );
 
 			}
 
@@ -99,23 +122,47 @@ namespace JSON_Loader {
 
 			$args = array_merge( array(
 				'generator_class' => false,
-				'property_name' => $generator_slug,
+				'template_file'   => false,
+				'element_slug'    => false,
+				'property_name'   => \JSON_Loader::underscorify( $generator_slug ),
 			), $args );
+
+			$generator_slug = \JSON_Loader::dashify( $generator_slug );
+
+			if ( is_array( $value ) ) {
+
+				if ( ! $args[ 'generator_class' ] ) {
+
+					/**
+					 * Get the class name of first element, if an array;
+					 */
+					 if ( count( $value ) && is_object( reset( $value ) ) ) {
+
+					    if ( ! $args[ 'element_slug' ] ) {
+
+						    $error_msg = "No 'element_slug' defined for generator {$generator_slug} in %s.";
+					        Loader::log_error( sprintf( $error_msg, get_class( $this ) ) );
+
+					    }
+
+						$args[ 'generator_class' ] = $this->get_generator_class(
+							$args[ 'element_slug' ],
+							\JSON_Loader::get_namespace( $this )
+						);
+
+					 } else {
+
+						 $args[ 'generator_class' ] = null;
+
+					 }
+
+				}
+
+			}
 
 			$generator_class =  $args[ 'generator_class' ];
 
 			unset( $args[ 'generator_class' ] );
-
-			$property_name = $args[ 'property_name' ];
-
-			if ( is_array( $value ) ) {
-
-				/**
-				 * Get the first element if an array;
-				 */
-				$value = count( $value ) ? reset( $value ) : null;
-
-			}
 
 			if ( $value instanceof Object ) {
 
@@ -148,7 +195,7 @@ namespace JSON_Loader {
 
 					}
 
-					Loader::log_error( "None of theses generator classes exist for generator slug \"{$generator_slug}\" and property name \"{$property_name}\":"
+					Loader::log_error( "None of theses generator classes exist for generator slug \"{$generator_slug}\":"
 						. " [{$generator_class}], [{$try_class1}] nor [{$try_class1}]."
 					);
 
@@ -156,16 +203,41 @@ namespace JSON_Loader {
 
 			}
 
-			$this->generators[ $generator_slug ] = new $generator_class( $value, $args );
+            if ( is_array( $value ) ) {
+
+	            $this->generators[ $generator_slug ] = new Array_Generator( $generator_class, $value, $this, array(
+
+		            'property_name' => \JSON_Loader::underscorify( $args[ 'element_slug' ] ),
+
+	            ));
+
+
+            } else if ( get_class( $this ) === ltrim( $generator_class,'\\' ) ) {
+                /**
+                 * This is an array element and the generator is defining itself
+                 */
+
+	            /**
+	             * @var Object $value
+	             */
+	            $this->initialize( $value, $this );
+	            $this->set_args( $args );
+
+
+            } else {
+	            $this->generators[ $generator_slug ] = new $generator_class( $value, $this, $args );
+
+            }
 
 		}
 
 		/**
+		 * @param string $template_type
 		 * @param string $file_template
 		 */
-		function register_output_file( $file_template ) {
+		function register_output_file( $template_type, $file_template ) {
 
-			$this->output_files[] = $file_template;
+			$this->output_files[ $template_type ] = $file_template;
 
 		}
 
@@ -222,9 +294,9 @@ namespace JSON_Loader {
 
 			if ( count( $files = $this->output_files ) ) {
 
-				foreach( $files as $file_template ) {
+				foreach( $files as $template_type => $file_template ) {
 
-					$this->generate_file( $file_template );
+					$this->generate_file( $file_template, $template_type );
 
 				}
 			}
@@ -233,12 +305,26 @@ namespace JSON_Loader {
 
 				foreach( $generators as $generator_slug => $generator ) {
 
-					/**
-					 * @var Generator $generator
-					 */
-					$property_name = $generator->property_name;
+					$generator_slug = \JSON_Loader::underscorify( $generator_slug );
 
-					self::generate( $this->object->$property_name, $generator );
+					if ( ! is_array( $generator ) ) {
+
+						/**
+						 * @var Generator $generator
+						 */
+						self::generate( $this->object->$generator_slug, $generator );
+
+					} else {
+
+						$values = $this->object->$generator_slug;
+
+						foreach( $generator as $index => $element_generator ) {
+
+							self::generate( $values[ $index ], $element_generator );
+
+						}
+
+					}
 
 				}
 			}
@@ -261,31 +347,38 @@ namespace JSON_Loader {
 
 		/**
 		 * @param string $file_template
+		 * @param string $template_type
 		 */
-		function generate_file( $file_template ) {
+		function generate_file( $file_template, $template_type ) {
 
-			$filepath = $this->apply_file_template( $file_template,  $this->get_state_properties() );
+			$filepath = $this->apply_file_template( $file_template,  $properties = $this->get_state_properties() );
 
 			if ( ! is_file( $filepath ) ) {
 
-				ob_start();
+				if ( ! is_file( $template_file = $this->template_dir( "{$template_type}.php" ) ) ) {
+
+					Loader::log_error( "Template file {$this->template_file} does not exist." );
+
+				}
 
 				$generator_slug = static::generator_slug();
 
-				if ( ! is_file( $template_file = $this->template_dir( "{$generator_slug}.php" ) ) ) {
+				$object_name = \JSON_Loader::underscorify( $generator_slug );
 
-					Loader::log_error( "Template file {$template_file} does not exist." );
-
-				}
-				extract( array( $generator_slug => $this->object ), EXTR_SKIP );
+				extract( array( $object_name => $this->object ), EXTR_SKIP );
 
 				unset( $file_template, $generator_slug );
+
+				ob_start();
 
 				require( $template_file );
 
 				$source = ob_get_clean();
 
-				file_put_contents( $filepath, $source );
+				/**
+				 * @todo Change this to generate other types of files beside PHP.
+				 */
+				file_put_contents( $filepath, "<?php\n{$source}" );
 
 			}
 
@@ -299,7 +392,7 @@ namespace JSON_Loader {
 		 */
 		function get_generator_class( $generator_slug, $namespace ) {
 
-			$generator_slug = implode( '_', array_map( 'ucfirst', explode( '_', $generator_slug ) ) );
+			$generator_slug = implode( '_', array_map( 'ucfirst', explode( '_', \JSON_Loader::underscorify( $generator_slug ) ) ) );
 
 			$generator_class = \JSON_Loader::get_qualified_class_name( "{$generator_slug}_Generator", $namespace );
 
@@ -321,15 +414,15 @@ namespace JSON_Loader {
 		 */
 		function apply_file_template( $file_template, $properties ) {
 
+			$messages = array();
+
+			$values = array();
+
 			if ( preg_match_all( '#(.*?)\{([^\}]+)\}#', $file_template, $matches ) ) {
 
 				$root_state = Loader::get_state( self::$root );
 
-				$root_properties = $root_state->data;
-
-				$messages = array();
-
-				$values = array();
+				$root_properties = $root_state->values;
 
 				foreach ( $matches[2] as $template_var ) {
 
@@ -383,7 +476,7 @@ namespace JSON_Loader {
 
 							}
 
-							$properties = Loader::get_state( $value )->data;
+							$properties = Loader::get_state( $value )->values;
 
 							$counter--;
 

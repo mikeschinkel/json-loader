@@ -14,6 +14,14 @@ namespace JSON_Loader {
 		 */
 		function __construct( $args = array() ) {
 
+			$this->set_args( $args );
+
+		}
+
+		/**
+		 * @param $args
+		 */
+		function set_args( $args ) {
 			if ( is_string( $args ) ) {
 
 				parse_str( $args, $args );
@@ -22,7 +30,7 @@ namespace JSON_Loader {
 
 			foreach ( $args as $name => $value ) {
 
-				if ( 'extra_args' != $name && property_exists( $this, $name ) ) {
+				if ( 'extra_args' !== $name && property_exists( $this, $name ) ) {
 
 					$this->{$name} = $value;
 
@@ -35,7 +43,6 @@ namespace JSON_Loader {
 			}
 
 		}
-
 	}
 
 }

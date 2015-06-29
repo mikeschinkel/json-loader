@@ -11,7 +11,7 @@ namespace JSON_Loader {
 	 *
 	 * It does this so it can represent a JSON object and use virtual properties to mirror the properties in the
 	 * JSON object without having to require any property names to be reserved. Values are actually retrieved from
-	 * $state->data[ $property_name ] whenever $object->property_name is accessed.
+	 * $state->values[ $property_name ] whenever $object->property_name is accessed.
 	 *
 	 * This architecture is so special so a method named the same as the JSON property can be used to validate, sanitize
 	 * and/or transform the property value without having to reserve any method names.
@@ -24,17 +24,17 @@ namespace JSON_Loader {
 	class Object extends Base {
 
 		/**
-		 * @param object|array $data
+		 * @param object|array $value
 		 * @param bool|Object $parent
 		 * @param array $args
 		 */
-		function __construct( $data, $parent = false, $args = array() ) {
+		function __construct( $value, $parent = false, $args = array() ) {
 
 			$state = Loader::parse_class_header( $this, $parent );
 
-			$data = Loader::set_object_defaults( $state->schema, $data );
+			$value = Loader::set_object_defaults( $state->schema, $value );
 
-			foreach ( $data as $property_name => $property_value ) {
+			foreach ( $value as $property_name => $property_value ) {
 
 				if ( ! isset( $state->schema[ $property_name ] ) ) {
 
@@ -42,13 +42,57 @@ namespace JSON_Loader {
 
 				} else {
 
-					$state->data[ $property_name ] = Loader::instantiate_value(
-						$this,
-						$state->schema[ $property_name ],
-						$state->namespace,
-						$property_value
-					);
+					$property = $state->schema[ $property_name ];
 
+					/**
+					 * @todo Handle when the list is not the default type...
+					 */
+
+					$type = $property->default_type;
+
+//					if ( is_subclass_of( $type->class_name, '\JSON_Loader\Value_List' ) ) {
+//
+//						$list_class = $type->class_name;
+//
+//						$list = new $list_class( $value, $parent );
+//
+//						$list_state = Loader::get_state( $list );
+//
+//						$state->values[ $property_name ] = $list_state->values;
+//
+//					} else
+					if ( $type->class_name && 'object' === $type->array_of && 'array' === $type->base_type ) {
+
+						$class_name = $type->class_name;
+
+						$elements = $states = array();
+
+						if ( ! empty( $value[ $property_name ] ) && is_array( $value[ $property_name ] ) ) {
+
+							foreach ( $value[ $property_name ] as $element_value ) {
+
+								$element = new $class_name( $element_value, $this );
+
+								$states[] = Loader::get_state( $element );
+
+								$elements[] = $element;
+
+
+							}
+						}
+
+						$state->values[ $property_name ] = $elements;
+
+					} else {
+
+						$state->values[ $property_name ] = Loader::instantiate_value(
+							$this,
+							$state->schema[ $property_name ],
+							$state->namespace,
+							$property_value
+						);
+
+					}
 				}
 
 			}
@@ -60,11 +104,11 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string $property
+		 * @param string $property_name
 		 *
 		 * @return mixed|null
 		 */
-		function __get( $property ) {
+		function __get( $property_name ) {
 
 			\JSON_Loader::push_class( $this );
 
@@ -72,33 +116,33 @@ namespace JSON_Loader {
 
 			$state = Loader::get_state( $this );
 
-			if ( 'parent' == $property ) {
+			if ( 'parent' == $property_name ) {
 
 				$value = $state->parent;
 
-			} else if ( method_exists( $this, $property ) && is_callable( $callable = array( $this, $property ) ) ) {
+			} else if ( method_exists( $this, $property_name ) && is_callable( $callable = array( $this, $property_name ) ) ) {
 
-				if ( ! array_key_exists( $property, $state->cached ) ) {
+				if ( ! array_key_exists( $property_name, $state->cached ) ) {
 
-					$state->cached[ $property ] = call_user_func( $callable, $state->data[ $property ] );
+					$state->cached[ $property_name ] = call_user_func( $callable, $state->values[ $property_name ] );
 
 				}
-				$value = $state->cached[ $property ];
+				$value = $state->cached[ $property_name ];
 
-			} else if ( array_key_exists( $property, $state->schema ) && array_key_exists( $property, $state->data ) ) {
+			} else if ( array_key_exists( $property_name, $state->schema ) && array_key_exists( $property_name, $state->values ) ) {
 
-				$value = $state->data[ $property ];
+				$value = $state->values[ $property_name ];
 
-			} else if ( array_key_exists( $property, $state->extra_args ) ) {
+			} else if ( array_key_exists( $property_name, $state->extra_args ) ) {
 
-				$value = $state->extra_args[ $property ];
+				$value = $state->extra_args[ $property_name ];
 
 			} else if ( $state->parent instanceof Object ) {
 
 				/**
 				 * Bubble up...
 				 */
-				$value = $state->parent->__get( $property );
+				$value = $state->parent->__get( $property_name );
 
 			} else {
 
@@ -106,7 +150,7 @@ namespace JSON_Loader {
 				if ( empty( $class_name ) ) {
 					$class_name = get_class( $this );
 				}
-				Loader::log_error( "There is no property \"{$property}\" in any of these class(es): {$class_name}." );
+				Loader::log_error( "There is no property \"{$property_name}\" in any of these class(es): {$class_name}." );
 
 			}
 
