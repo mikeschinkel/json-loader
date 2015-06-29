@@ -58,6 +58,17 @@ namespace JSON_Loader {
 			parent::__construct( $args );
 
 		}
+
+		/**
+		 * @param string $property_name
+		 */
+		function clear_cached_property( $property_name ) {
+
+			unset( $this->cached[ $property_name ] );
+
+		}
+
+
 	}
 
 

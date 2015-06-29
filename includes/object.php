@@ -18,7 +18,8 @@ namespace JSON_Loader {
 	 *
 	 * @package JSON_Loader
 	 *
-	 * @property Object $parent
+	 * @property Object $__parent__
+	 * @property Property[] $__meta__
 	 *
 	 */
 	class Object extends Base {
@@ -50,17 +51,6 @@ namespace JSON_Loader {
 
 					$type = $property->default_type;
 
-//					if ( is_subclass_of( $type->class_name, '\JSON_Loader\Value_List' ) ) {
-//
-//						$list_class = $type->class_name;
-//
-//						$list = new $list_class( $value, $parent );
-//
-//						$list_state = Loader::get_state( $list );
-//
-//						$state->values[ $property_name ] = $list_state->values;
-//
-//					} else
 					if ( $type->class_name && 'object' === $type->array_of && 'array' === $type->base_type ) {
 
 						$class_name = $type->class_name;
@@ -76,7 +66,6 @@ namespace JSON_Loader {
 								$states[] = Loader::get_state( $element );
 
 								$elements[] = $element;
-
 
 							}
 						}
@@ -118,7 +107,16 @@ namespace JSON_Loader {
 
 			if ( 'parent' == $property_name ) {
 
+				// @todo get rid of these
 				$value = $state->parent;
+
+			} else if ( '__parent__' == $property_name ) {
+
+				$value = $state->parent;
+
+			} else if ( '__meta__' == $property_name ) {
+
+				$value = $state->schema;
 
 			} else if ( method_exists( $this, $property_name ) && is_callable( $callable = array( $this, $property_name ) ) ) {
 
@@ -160,6 +158,23 @@ namespace JSON_Loader {
 
 		}
 
+//		/**
+//		 * @param string $property_name
+//		 *
+//		 * @return bool
+//		 */
+//		function __isset( $property_name ) {
+//
+//			$state = Loader::get_state( $this );
+//
+//			return preg_match( '#^(parent|__meta__)$#', $property_name ) ||
+//				array_key_exists( $property_name, $state->schema ) ||
+//				array_key_exists( $property_name, $state->extra_args ) ||
+//				$state->parent->__isset( $property_name );
+//
+//		}
+
 	}
+
 
 }

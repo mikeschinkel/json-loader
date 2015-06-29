@@ -38,6 +38,13 @@ namespace JSON_Loader {
 		var $default = null;
 
 		/**
+		 * Character to explode() on for string to array
+		 *
+		 * @var string
+		 */
+		var $explode = false;
+
+		/**
 		 * @var Type[]
 		 */
 		var $types;
@@ -86,6 +93,12 @@ namespace JSON_Loader {
 			$args['namespace'] = $namespace;
 
 			$args['default_type'] = 0 < count( $args['types'] ) ? reset( $args['types'] ) : false;
+
+			if ( ! empty( $args[ 'explode' ] ) ) {
+
+				$args[ 'explode' ] = preg_replace( '#^([\'"](.*)[\'"]|(.*))$#', '$2$3', trim( $args[ 'explode' ] ) );
+
+			}
 
 			/**
 			 * Let parent assign $args to properties
@@ -172,6 +185,64 @@ namespace JSON_Loader {
 			ob_start();
 			print_r( $value );
 			return ob_get_clean();
+
+		}
+
+		/**
+		 * @param string $extra_arg
+		 *
+		 * @return bool
+		 */
+		function is_true( $extra_arg ) {
+
+			return (bool) ( array_key_exists( $extra_arg, $this->extra_args ) && $this->extra_args[ $extra_arg ] );
+
+		}
+
+		/**
+		 * @param string $extra_arg
+		 *
+		 * @return bool
+		 */
+		function is_false( $extra_arg ) {
+
+			return (bool) ( array_key_exists( $extra_arg, $this->extra_args ) && ! $this->extra_args[ $extra_arg ] );
+
+		}
+
+		/**
+		 * @param string $extra_arg
+		 *
+		 * @return mixed
+		 */
+		function get_extra( $extra_arg ) {
+
+			$extra = array_key_exists( $extra_arg, $this->extra_args ) ? $this->extra_args[ $extra_arg ] : null;
+
+			return is_string( $extra ) ? trim( $extra ) : $extra;
+
+		}
+
+		/**
+		 * Invokes the logic in the Object to default, sanitize, standardize, etc.
+		 * @return mixed
+		 */
+		function value() {
+
+			$object = $this->parent;
+
+			$property_name = $this->property_name;
+
+			if ( is_callable( $callable = array( $object, $property_name ) ) && method_exists( $object, $property_name ) ) {
+
+				$value = call_user_func( $callable, $object->$property_name );
+
+			} else {
+
+				$value = $object->$property_name;
+
+			}
+			return $value;
 
 		}
 

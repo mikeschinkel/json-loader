@@ -8,6 +8,8 @@ namespace JSON_Loader {
 
 		const SLUG = 'generator';
 
+		const TAB_WIDTH = 4;
+
 		/**
 		 * @var \JSON_Loader\Object Root object
 		 */
@@ -70,7 +72,6 @@ namespace JSON_Loader {
 
 			$this->parent = $parent;
 
-
 		}
 
 		/**
@@ -115,7 +116,8 @@ namespace JSON_Loader {
 		 * @param string $generator_slug
 		 * @param Object|array $value
 		 * @param array $args {
-		 *      @type string|bool $generator_class
+		 *
+		 * @type string|bool $generator_class
 		 * }
 		 */
 		function register_generator( $generator_slug, $value, $args = array() ) {
@@ -131,38 +133,38 @@ namespace JSON_Loader {
 
 			if ( is_array( $value ) ) {
 
-				if ( ! $args[ 'generator_class' ] ) {
+				if ( ! $args['generator_class'] ) {
 
 					/**
 					 * Get the class name of first element, if an array;
 					 */
-					 if ( count( $value ) && is_object( reset( $value ) ) ) {
+					if ( count( $value ) && is_object( reset( $value ) ) ) {
 
-					    if ( ! $args[ 'element_slug' ] ) {
+						if ( ! $args['element_slug'] ) {
 
-						    $error_msg = "No 'element_slug' defined for generator {$generator_slug} in %s.";
-					        Loader::log_error( sprintf( $error_msg, get_class( $this ) ) );
+							$error_msg = "No 'element_slug' defined for generator {$generator_slug} in %s.";
+							Loader::log_error( sprintf( $error_msg, get_class( $this ) ) );
 
-					    }
+						}
 
-						$args[ 'generator_class' ] = $this->get_generator_class(
-							$args[ 'element_slug' ],
+						$args['generator_class'] = $this->get_generator_class(
+							$args['element_slug'],
 							\JSON_Loader::get_namespace( $this )
 						);
 
-					 } else {
+					} else {
 
-						 $args[ 'generator_class' ] = null;
+						$args['generator_class'] = null;
 
-					 }
+					}
 
 				}
 
 			}
 
-			$generator_class =  $args[ 'generator_class' ];
+			$generator_class = $args['generator_class'];
 
-			unset( $args[ 'generator_class' ] );
+			unset( $args['generator_class'] );
 
 			if ( $value instanceof Object ) {
 
@@ -174,7 +176,7 @@ namespace JSON_Loader {
 
 					}
 
-					$namespace = \JSON_Loader::get_namespace( $value );
+					$namespace  = \JSON_Loader::get_namespace( $value );
 					$try_class1 = "\\{$namespace}\\{$generator_class}";
 
 					if ( class_exists( $try_class1 ) ) {
@@ -196,38 +198,36 @@ namespace JSON_Loader {
 					}
 
 					Loader::log_error( "None of theses generator classes exist for generator slug \"{$generator_slug}\":"
-						. " [{$generator_class}], [{$try_class1}] nor [{$try_class1}]."
+					                   . " [{$generator_class}], [{$try_class1}] nor [{$try_class1}]."
 					);
 
 				} while ( false );
 
 			}
 
-            if ( is_array( $value ) ) {
+			if ( is_array( $value ) ) {
 
-	            $this->generators[ $generator_slug ] = new Array_Generator( $generator_class, $value, $this, array(
+				$this->generators[ $generator_slug ] = new Array_Generator( $generator_class, $value, $this, array(
 
-		            'property_name' => \JSON_Loader::underscorify( $args[ 'element_slug' ] ),
+					'property_name' => \JSON_Loader::underscorify( $args['element_slug'] ),
 
-	            ));
+				) );
 
+			} else if ( get_class( $this ) === ltrim( $generator_class, '\\' ) ) {
+				/**
+				 * This is an array element and the generator is defining itself
+				 */
 
-            } else if ( get_class( $this ) === ltrim( $generator_class,'\\' ) ) {
-                /**
-                 * This is an array element and the generator is defining itself
-                 */
+				/**
+				 * @var Object $value
+				 */
+				$this->initialize( $value, $this );
+				$this->set_args( $args );
 
-	            /**
-	             * @var Object $value
-	             */
-	            $this->initialize( $value, $this );
-	            $this->set_args( $args );
+			} else {
+				$this->generators[ $generator_slug ] = new $generator_class( $value, $this, $args );
 
-
-            } else {
-	            $this->generators[ $generator_slug ] = new $generator_class( $value, $this, $args );
-
-            }
+			}
 
 		}
 
@@ -262,7 +262,8 @@ namespace JSON_Loader {
 		function execute() {
 
 			if ( ! is_callable( $register_callable = array( $this, 'register' ) ) ||
-			     ! method_exists( $this, 'register' ) ) {
+			     ! method_exists( $this, 'register' )
+			) {
 
 				$error_msg = sprintf( 'Generator class %s does not have a callable register() method.', get_class( $this ) );
 
@@ -282,7 +283,7 @@ namespace JSON_Loader {
 				/**
 				 * Make any subdirectories
 				 */
-				foreach( $dirs as $dir ) {
+				foreach ( $dirs as $dir ) {
 
 					$dir = $this->apply_file_template( $dir, $properties );
 
@@ -294,7 +295,7 @@ namespace JSON_Loader {
 
 			if ( count( $files = $this->output_files ) ) {
 
-				foreach( $files as $template_type => $file_template ) {
+				foreach ( $files as $template_type => $file_template ) {
 
 					$this->generate_file( $file_template, $template_type );
 
@@ -303,7 +304,7 @@ namespace JSON_Loader {
 
 			if ( count( $generators = $this->generators ) ) {
 
-				foreach( $generators as $generator_slug => $generator ) {
+				foreach ( $generators as $generator_slug => $generator ) {
 
 					$generator_slug = \JSON_Loader::underscorify( $generator_slug );
 
@@ -318,7 +319,7 @@ namespace JSON_Loader {
 
 						$values = $this->object->$generator_slug;
 
-						foreach( $generator as $index => $element_generator ) {
+						foreach ( $generator as $index => $element_generator ) {
 
 							self::generate( $values[ $index ], $element_generator );
 
@@ -333,6 +334,7 @@ namespace JSON_Loader {
 
 		/**
 		 * @param bool|string $path
+		 *
 		 * @return string
 		 */
 		function template_dir( $path = false ) {
@@ -351,7 +353,7 @@ namespace JSON_Loader {
 		 */
 		function generate_file( $file_template, $template_type ) {
 
-			$filepath = $this->apply_file_template( $file_template,  $properties = $this->get_state_properties() );
+			$filepath = $this->apply_file_template( $file_template, $properties = $this->get_state_properties() );
 
 			if ( ! is_file( $filepath ) ) {
 
@@ -365,7 +367,10 @@ namespace JSON_Loader {
 
 				$object_name = \JSON_Loader::underscorify( $generator_slug );
 
-				extract( array( $object_name => $this->object ), EXTR_SKIP );
+				extract( array(
+					$object_name => $this->object,
+					'generator'  => $this,
+				), EXTR_SKIP );
 
 				unset( $file_template, $generator_slug );
 
@@ -399,13 +404,14 @@ namespace JSON_Loader {
 			if ( ! class_exists( $generator_class ) ) {
 
 				Loader::log_error( "The generator class {$generator_class} is not a valid class or it's filename"
-					. " is malformed for the autoloader; should be /generators/{$generator_slug}-generator.php" );
+				                   . " is malformed for the autoloader; should be /generators/{$generator_slug}-generator.php" );
 
 			}
 
 			return $generator_class;
 
 		}
+
 		/**
 		 * @param $file_template
 		 * @param $properties
@@ -432,17 +438,17 @@ namespace JSON_Loader {
 
 					$value = null;
 
-					foreach( $chain as $index => $property_name ) {
+					foreach ( $chain as $index => $property_name ) {
 
 						if ( ! is_array( $properties ) ) {
 
 							$messages[] = sprintf( "Template var {$template_var} does not match schema for {$property_name};"
-								." \\JSON_Loader\\Object expected but %s provided.", \JSON_Loader::get_type( $properties ) );
+							                       . " \\JSON_Loader\\Object expected but %s provided.", \JSON_Loader::get_type( $properties ) );
 							break;
 
 						}
 
-						$has_property = array_key_exists( $property_name, $properties );
+						$has_property      = array_key_exists( $property_name, $properties );
 						$has_root_property = 0 === $index && array_key_exists( $property_name, $root_properties );
 
 						if ( 1 == $counter ) {
@@ -478,7 +484,7 @@ namespace JSON_Loader {
 
 							$properties = Loader::get_state( $value )->values;
 
-							$counter--;
+							$counter --;
 
 						}
 
@@ -488,7 +494,7 @@ namespace JSON_Loader {
 					if ( is_array( $value ) ) {
 						$messages[] = str_replace( '{type}', 'array', $non_castable );
 					}
-					if ( is_object(  $value ) && '' === @(string)$property ) {
+					if ( is_object( $value ) && '' === @(string) $property ) {
 						$messages[] = str_replace( '{type}', 'object', $non_castable );
 					}
 
@@ -513,7 +519,7 @@ namespace JSON_Loader {
 						Loader::log_error( sprintf(
 							"{$property_name} is not a valid property of class %s.",
 							\JSON_Loader::get_type( $object )
-						));
+						) );
 
 					}
 
@@ -535,9 +541,11 @@ namespace JSON_Loader {
 				}
 
 			}
+
 			return $filepath;
 
 		}
+
 		/**
 		 * @return string|null
 		 */
@@ -560,7 +568,7 @@ namespace JSON_Loader {
 		 */
 		function get_state_properties() {
 
-		 	return Loader::get_state_properties( $this->object );
+			return Loader::get_state_properties( $this->object );
 
 		}
 
@@ -569,7 +577,7 @@ namespace JSON_Loader {
 		 */
 		static function mkdir( $dir = array() ) {
 
-		    $dirs = ! is_array( $dir ) ? array( $dir ) : $dir;
+			$dirs = ! is_array( $dir ) ? array( $dir ) : $dir;
 
 			foreach ( $dirs as $dir ) {
 
@@ -580,6 +588,133 @@ namespace JSON_Loader {
 				}
 
 			}
+
+		}
+
+		/**
+		 * @param array $args
+		 * @param int $tab_count
+		 *
+		 * @return string
+		 */
+		function get_generated_args( $args, $tab_count = 3 ) {
+
+			$output = array();
+
+			$tabs = str_repeat( "\t", $tab_count );
+
+			foreach ( array_keys( $args ) as $property_name ) {
+
+			}
+
+			/**
+			 * Find the longest name so we can later pad between the
+			 * single-quoted name and the => operator to align the values.
+			 */
+			$max_name_length = 0;
+
+			$tracker = 0;
+			$is_associative = false;
+			foreach( array_keys( $args ) as $index ) {
+
+				if ( $index !== $tracker++ ) {
+					$is_associative = true;
+					break;
+				}
+
+			}
+
+			/**
+			 * @var Property $property
+			 */
+			foreach ( $args as $property_name => $property ) {
+
+				$value = is_object( $property ) ? $property->value : $property;
+
+				if ( is_null( $value ) ) {
+
+					continue;
+
+				}
+
+				$prefix = $is_associative ? "{$tabs}'{$property_name}' => " : $tabs;
+
+				switch ( gettype( $value ) ) {
+
+					case 'string':
+
+						$output[] = "{$prefix}'{$value}',";
+
+						break;
+
+					case 'integer':
+
+						if ( 0 === $value && $property->is_true( 'omit_if_zero' ) ) {
+
+							continue;
+
+						}
+
+						$output[] = "{$prefix} {$value},";
+
+						break;
+
+					case 'boolean':
+
+						$bool     = $value ? 'true' : 'false';
+						$output[] = "{$prefix} {$bool},";
+
+						break;
+
+					case 'array':
+
+						$values = $this->get_generated_args( $value, 1 + $tab_count );
+
+						$output[] = "{$prefix} array(\n{$values}\n{$tabs}),";
+
+						break;
+
+					case 'object':
+
+						$as_array = $this->get_generated_args( (array) $value, $tab_count );
+
+						$output[] = preg_replace( "#(=>\s+)(array\()#", '=>$1(object) $2', $as_array );
+						break;
+
+					default:
+
+						echo '';
+						break;
+
+				}
+
+				$max_name_length = max( strlen( $property_name ), $max_name_length );
+
+			}
+
+			if ( $extra = $max_name_length % 4 ) {
+
+				$max_name_length += 4 - $extra;
+
+			}
+
+			foreach ( $output as $index => $line ) {
+
+				/**
+				 * Calculate the padding were four spaces get a tab between the
+				 * single-quoted name and the => operator to align the values.
+				 */
+				$whitespace       = $max_name_length - strpos( trim( $line ), '=>' ) + self::TAB_WIDTH;
+				$extra_tab        = 0 !== $whitespace %  self::TAB_WIDTH;
+				$num_tabs         = $whitespace >= self::TAB_WIDTH ? floor( $whitespace / self::TAB_WIDTH ) : 0;
+				$padding          = str_repeat( "\t", $num_tabs ) . ( $extra_tab ? "\t" : '' );
+				$output[ $index ] = str_replace( '=>', "{$padding}=>", $output[ $index ] );
+
+			}
+
+			$output = implode( "\n", $output );
+
+			return $output;
 
 		}
 

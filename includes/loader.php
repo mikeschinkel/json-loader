@@ -322,19 +322,11 @@ namespace JSON_Loader {
 			switch ( $base_type = $current_type->base_type ) {
 
 				case 'string':
-
-					// Do nothing
-					break;
-
 				case 'int':
-
-					$value = intval( $value );
-					break;
-
 				case 'bool':
 				case 'boolean':
 
-					$value = (bool) $value;
+					// Do nothing
 					break;
 
 				case 'array':
