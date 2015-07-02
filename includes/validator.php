@@ -47,7 +47,7 @@ namespace JSON_Loader {
 
 			if ( 0 < count( self::$errors ) && 0 === $level ) {
 
-			    Loader::log_error( "Validation Failed:\n\n\t- " . implode( "\n\t- ", self::$errors ) );
+			    Util::log_error( "Validation Failed:\n\n\t- " . implode( "\n\t- ", self::$errors ) );
 
 			}
 
@@ -63,15 +63,15 @@ namespace JSON_Loader {
 		 */
 		static function validate_object( $object, $level = 0 ) {
 
-			$state = Loader::get_state( $object );
+			$state = Util::get_state( $object );
 
 			$valid = true;
 
 			foreach ( $state->schema as $property_name => $property ) {
 
-				$property->value = $state->values[ $property_name ];
+				$values = $state->values[ $property_name ];
 
-				if ( ! is_array( $property->value ) ) {
+				if ( ! is_array( $values ) ) {
 
 					if ( ! static::validate_property( $property, $level ) ) {
 
@@ -81,7 +81,7 @@ namespace JSON_Loader {
 
 				} else {
 
-					foreach ( $property->value as $index => $value ) {
+					foreach ($values as $index => $value ) {
 
 						if ( ! static::validate( $value, $level ) ) {
 

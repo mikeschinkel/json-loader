@@ -20,19 +20,10 @@ namespace JSON_Loader {
 		static $schemas = array();
 
 		/**
-		 * @var string[]
-		 */
-		static $namespaces = array();
-
-		/**
 		 * @var mixed[]|Property[]
 		 */
 		static $properties = array();
 
-		/**
-		 * @var array
-		 */
-		private static $object_state = array();
 
 		/**
 		 * @param string $root_class
@@ -47,7 +38,7 @@ namespace JSON_Loader {
 
 			if ( ! class_exists( $root_class ) ) {
 
-				self::log_error( "The class {$root_class} is not a valid PHP class." );
+				Util::log_error( "The class {$root_class} is not a valid PHP class." );
 
 			}
 			$json_string = static::load_file( $filepath );
@@ -62,7 +53,7 @@ namespace JSON_Loader {
 
 		/**
 		 * @param string $json
-		 * @param string $filepath
+		 * @param bool|string $filepath
 		 *
 		 * @return object
 		 */
@@ -74,15 +65,15 @@ namespace JSON_Loader {
 
 				if ( $filepath ) {
 
-					self::log_error( "The {$name} file {$filepath} has invalid syntax." );
+					Util::log_error( "The JSON file {$filepath} has invalid syntax." );
 
 				} else if ( empty( $json ) ) {
 
-					self::log_error( "The JSON value provided is empty." );
+					Util::log_error( "The JSON value provided is empty." );
 
 				} else {
 
-					self::log_error( "The JSON value provided has invalid syntax." );
+					Util::log_error( "The JSON value provided has invalid syntax." );
 
 				}
 
@@ -103,22 +94,13 @@ namespace JSON_Loader {
 
 			if ( empty( $filepath ) ) {
 
-				self::log_error( "The filename passed was empty." );
+				Util::log_error( "The filename passed was empty." );
 
 			}
 
 			$json = file_get_contents( $filepath );
 
 			return $json;
-
-		}
-
-		/**
-		 * @param string $message
-		 */
-		static function log_error( $message ) {
-
-			self::$logger->error( $message );
 
 		}
 
@@ -150,8 +132,6 @@ namespace JSON_Loader {
 
 					$state->namespace = $class_reflector->getNamespaceName();
 
-					self::$namespaces[ $class_name ] = $state->namespace;
-
 					$lines = explode( "\n", $class_reflector->getDocComment() );
 
 					for ( $index = 0; count( $lines ) > $index; $index ++ ) {
@@ -180,7 +160,7 @@ namespace JSON_Loader {
 
 								}
 
-								$args = array_merge( $args, self::parse_sub_properties( $subproperties, $type ) );
+								$args = array_merge( $args, self::parse_sub_values( $subproperties, $type ) );
 
 							}
 
@@ -211,7 +191,7 @@ namespace JSON_Loader {
 		 *
 		 * @return array;
 		 */
-		static function parse_sub_properties( $sub_properties, $property_type ) {
+		static function parse_sub_values( $sub_properties, $property_type ) {
 
 			$args = array();
 
@@ -266,18 +246,6 @@ namespace JSON_Loader {
 			return $args;
 
 		}
-
-		/**
-		 * @param string $class_name
-		 *
-		 * @return string
-		 */
-		static function get_namespace( $class_name ) {
-
-			return ! empty( self::$namespaces[ $class_name ] ) ? self::$namespaces[ $class_name ] : '';
-
-		}
-
 
 		/**
 		 * @param Property[] $schema
@@ -377,63 +345,23 @@ namespace JSON_Loader {
 
 		/**
 		 * @param Object $object
-		 * @param State $state
-		 */
-		static function set_state( $object, $state ) {
-
-			self::$object_state[ spl_object_hash( $object ) ] = $state;
-
-		}
-
-		/**
-		 * @param Object $object
-		 *
-		 * @return State $state
-		 */
-		static function get_state( $object ) {
-
-			$hash = spl_object_hash( $object );
-
-			return isset( self::$object_state[ $hash ] )
-				? self::$object_state[ $hash ]
-				: null;
-
-		}
-
-		/**
-		 * @param Object $object
 		 * @param string $property_name
 		 *
 		 * @return State $state
 		 */
-		static function has_state_property( $object, $property_name ) {
+		static function has_state_value( $object, $property_name ) {
 
-			return property_exists( self::get_state( $object ), $property_name );
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string $property_name
-		 *
-		 * @return State $state
-		 */
-		static function get_state_property( $object, $property_name ) {
-
-			$properties = self::get_state_properties( $object );
-
-			return isset( $properties[ $property_name ] )
-				? $properties[ $property_name ]
-				: null;
+			return property_exists( Util::get_state( $object ), $property_name );
 
 		}
+
 
 		/**
 		 * @param Object $object
 		 *
 		 * @return Object[]|mixed[]
 		 */
-		static function get_state_properties( $object ) {
+		static function get_state_values( $object ) {
 
 			if ( ! $object instanceof Object ) {
 
@@ -441,7 +369,7 @@ namespace JSON_Loader {
 
 			} else {
 
-				$state = static::get_state( $object );
+				$state = Util::get_state( $object );
 
 				$properties = $state->values;
 
@@ -450,6 +378,8 @@ namespace JSON_Loader {
 			return $properties;
 
 		}
+
+
 
 	}
 

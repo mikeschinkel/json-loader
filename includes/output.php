@@ -10,7 +10,7 @@ namespace JSON_Loader {
 		 */
 		static function show_data( $object, $level = 0 ) {
 
-			$properties = Loader::get_state_properties( $object );
+			$properties = Loader::get_state_values( $object );
 			$width      = 0;
 			$rearranged = array();
 			foreach ( $properties as $field => $value ) {

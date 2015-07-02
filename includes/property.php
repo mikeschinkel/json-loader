@@ -9,6 +9,8 @@ namespace JSON_Loader {
 	 * Class Property
 	 *
 	 * @package JSON_Loader
+	 *
+	 * @property mixed $value
 	 */
 	class Property extends Base {
 
@@ -38,6 +40,11 @@ namespace JSON_Loader {
 		var $default = null;
 
 		/**
+		 * @var bool
+		 */
+		var $initializer = null;
+
+		/**
 		 * Character to explode() on for string to array
 		 *
 		 * @var string
@@ -58,11 +65,6 @@ namespace JSON_Loader {
 		 * @var Object
 		 */
 		var $parent;
-
-		/**
-		 * @var mixed Used by Validator
-		 */
-		var $value;
 
 		/**
 		 * @param string $property_name
@@ -94,9 +96,9 @@ namespace JSON_Loader {
 
 			$args['default_type'] = 0 < count( $args['types'] ) ? reset( $args['types'] ) : false;
 
-			if ( ! empty( $args[ 'explode' ] ) ) {
+			if ( ! empty( $args['explode'] ) ) {
 
-				$args[ 'explode' ] = preg_replace( '#^([\'"](.*)[\'"]|(.*))$#', '$2$3', trim( $args[ 'explode' ] ) );
+				$args['explode'] = preg_replace( '#^([\'"](.*)[\'"]|(.*))$#', '$2$3', trim( $args['explode'] ) );
 
 			}
 
@@ -146,13 +148,13 @@ namespace JSON_Loader {
 					$message = sprintf(
 						"Failed to load %s using %s value: %s.\n" .
 						"\nCorrrect the PHPDoc for %s or change the values in your JSON file.",
-						(string)$type,
-						(string)$value_type,
+						(string) $type,
+						(string) $value_type,
 						$this->_as_string( $value ),
 						$this->identifier()
 					);
 
-					Loader::log_error( $message );
+					Util::log_error( $message );
 
 				}
 
@@ -184,6 +186,7 @@ namespace JSON_Loader {
 
 			ob_start();
 			print_r( $value );
+
 			return ob_get_clean();
 
 		}
@@ -225,6 +228,7 @@ namespace JSON_Loader {
 
 		/**
 		 * Invokes the logic in the Object to default, sanitize, standardize, etc.
+		 *
 		 * @return mixed
 		 */
 		function value() {
@@ -233,16 +237,131 @@ namespace JSON_Loader {
 
 			$property_name = $this->property_name;
 
-			if ( is_callable( $callable = array( $object, $property_name ) ) && method_exists( $object, $property_name ) ) {
-
-				$value = call_user_func( $callable, $object->$property_name );
-
-			} else {
+			if ( Util::has_property( $object, $property_name ) ) {
 
 				$value = $object->$property_name;
 
+			} else if ( Util::has_parent_property( $object, $property_name ) ) {
+
+				$value = $object->parent->$property_name;
+
+			} else {
+
+				$value = null;
+
+				Util::log_error( sprintf(
+					"Class %s does not have property in State->schema or ->values when attempting to get Property->value for property %s",
+					get_class( $this->parent ),
+					$property_name
+				) );
+
 			}
+
 			return $value;
+
+		}
+
+		/**
+		 * Return the 'State' object of this Property's parent Object.
+		 *
+		 * @return State
+		 */
+		function parent_state() {
+
+			/**
+			 * @var Object $object
+			 */
+			$object = $this->parent;
+
+			return Util::get_state( $object );
+
+		}
+
+		/**
+		 * Return the 'State' object of this Property's parent Object.
+		 *
+		 * @param State $state
+		 */
+		function set_parent_state( $state ) {
+
+			/**
+			 * @var Object $object
+			 */
+			$object = $this->parent;
+
+			Util::set_state( $object, $state );
+
+		}
+
+		/**
+		 * Special case to get 'Value'
+		 *
+		 * Get the $property_name element of the 'values' array from the State of this
+		 * Property's parent Object if it exists or property is not 'value', then fail.
+		 *
+		 * @param string $property_name
+		 * @return mixed
+		 */
+		function __get( $property_name ) {
+
+			if ( 'value' === $property_name ) {
+
+				$value = $this->value();
+
+			} else {
+
+				$value = null;
+
+				Util::log_error( sprintf(
+					"Class %s does not have property in State->schema or ->values when attempting to set Property->value for property %s",
+					get_class( $this->parent ),
+					$property_name
+				));
+
+			}
+
+			return $value;
+
+		}
+
+		/**
+		 * Special case to set 'Value'
+		 *
+		 * Set the $property_name element of the 'values' array in the State of this
+		 * Property's parent Object if it exists, otherwise fail.
+		 * If not 'value' just set the property.
+		 *
+		 * @param string $property_name
+		 * @param $value
+		 */
+		function __set( $property_name, $value ) {
+
+			if ( 'value' === $property_name ) {
+
+				$state = $this->parent_state();
+
+				if ( array_key_exists( $this->property_name, $state->values ) ) {
+
+					$state->values[ $this->property_name ] = $value;
+
+				} else {
+
+					Util::log_error( sprintf(
+						"Class %s does not have property in State->schema or ->values when attempting to set Property->value for property %s",
+						get_class( $this->parent ),
+						$property_name
+					));
+
+				}
+
+				$this->set_parent_state( $state );
+
+			}
+
+			if ( true ) {
+
+				$this->$property_name = $value;
+			}
 
 		}
 

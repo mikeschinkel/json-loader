@@ -31,6 +31,12 @@ namespace JSON_Loader {
 		 */
 		function __construct( $value, $parent = false, $args = array() ) {
 
+			if ( ! Util::has_root() ) {
+
+			 	Util::set_root( $this );
+
+			}
+
 			$state = Loader::parse_class_header( $this, $parent );
 
 			$value = Loader::set_object_defaults( $state->schema, $value );
@@ -63,7 +69,7 @@ namespace JSON_Loader {
 
 								$element = new $class_name( $element_value, $this );
 
-								$states[] = Loader::get_state( $element );
+								$states[] = Util::get_state( $element );
 
 								$elements[] = $element;
 
@@ -86,7 +92,7 @@ namespace JSON_Loader {
 
 			}
 
-			Loader::set_state( $this, $state );
+			Util::set_state( $this, $state );
 
 			parent::__construct( $args );
 
@@ -99,13 +105,13 @@ namespace JSON_Loader {
 		 */
 		function __get( $property_name ) {
 
-			\JSON_Loader::push_class( $this );
+			Util::push_class( $this );
 
 			$value = null;
 
-			$state = Loader::get_state( $this );
+			$state = Util::get_state( $this );
 
-			if ( 'parent' == $property_name ) {
+			if ( 'parent' === $property_name ) {
 
 				// @todo get rid of these
 				$value = $state->parent;
@@ -118,7 +124,8 @@ namespace JSON_Loader {
 
 				$value = $state->schema;
 
-			} else if ( method_exists( $this, $property_name ) && is_callable( $callable = array( $this, $property_name ) ) ) {
+
+			} else if ( Util::can_call( $callable = array( $this, $property_name ) ) ) {
 
 				if ( ! array_key_exists( $property_name, $state->cached ) ) {
 
@@ -144,35 +151,20 @@ namespace JSON_Loader {
 
 			} else {
 
-				$class_name = implode( ', ', \JSON_Loader::class_stack() );
+				$class_name = implode( ', ', Util::class_stack() );
 				if ( empty( $class_name ) ) {
 					$class_name = get_class( $this );
 				}
-				Loader::log_error( "There is no property \"{$property_name}\" in any of these class(es): {$class_name}." );
+				Util::log_error( "There is no property \"{$property_name}\" in any of these class(es): {$class_name}." );
 
 			}
 
-			\JSON_Loader::pop_class();
+			Util::pop_class();
 
 			return $value;
 
 		}
 
-//		/**
-//		 * @param string $property_name
-//		 *
-//		 * @return bool
-//		 */
-//		function __isset( $property_name ) {
-//
-//			$state = Loader::get_state( $this );
-//
-//			return preg_match( '#^(parent|__meta__)$#', $property_name ) ||
-//				array_key_exists( $property_name, $state->schema ) ||
-//				array_key_exists( $property_name, $state->extra_args ) ||
-//				$state->parent->__isset( $property_name );
-//
-//		}
 
 	}
 
