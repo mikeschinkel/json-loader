@@ -67,11 +67,11 @@ namespace JSON_Loader {
 
 			$valid = true;
 
-			foreach ( $state->schema as $property_name => $property ) {
+			foreach ( (array)$state->schema as $property_name => $property ) {
 
-				$values = $state->values[ $property_name ];
+				$property_value = $state->get_value( $property_name );
 
-				if ( ! is_array( $values ) ) {
+				if ( ! is_array( $property_value ) ) {
 
 					if ( ! static::validate_property( $property, $level ) ) {
 
@@ -81,7 +81,7 @@ namespace JSON_Loader {
 
 				} else {
 
-					foreach ($values as $index => $value ) {
+					foreach ( $property_value as $index => $value ) {
 
 						if ( ! static::validate( $value, $level ) ) {
 
@@ -108,20 +108,24 @@ namespace JSON_Loader {
 
 			$valid = true;
 
+			$property_value = $property->value;
+
 			if ( $property->value instanceof Object ) {
 
-				$valid = static::validate_object( $property->value, $level );
+				$valid = static::validate_object( $property_value, $level );
 
-			} else if ( $property->required && empty( $property->value ) ) {
+			} else if ( $property->required && empty( $property_value ) ) {
 
-				$error_msg = get_class( $property->parent ) . "->{$property->property_name} is required";
+				$unique_id = Util::unique_id( $property->parent_object );
 
-				if ( is_array( $property->value ) && 0 === count( $property->value ) ) {
+				$error_msg = sprintf( "Property \"{$property->property_name}\" is required for the \"%s\" %s", $unique_id, get_class( $property->parent_object ) );
+
+				if ( is_array( $property->value ) && 0 === count( $property_value ) ) {
 
 					self::$errors[] = "{$error_msg} to have array elements.";
 					$valid = false;
 
-				} else if ( is_null( $property->value ) ) {
+				} else if ( is_null( $property_value ) ) {
 
 					self::$errors[] = "{$error_msg}.";
 					$valid = false;

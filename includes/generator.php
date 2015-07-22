@@ -90,7 +90,7 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * Stub method so child can safely call its parent
+		 * Stub method so child can safely call its object_parent
 		 * Might want to put something here later, though.
 		 */
 		function register() {
@@ -131,23 +131,7 @@ namespace JSON_Loader {
 		 */
 		function unique_id() {
 
-			$unique_id_field = $this->get_constant( 'UNIQUE_ID' );
-
-			$state = $this->object_state();
-
-			if ( ! array_key_exists( $unique_id_field, $state->values ) ) {
-
-				$message = "No UNIQUE_ID constant set in class %s. UNIQUE_ID identifies the field name contain a unique identifying value.";
-
-				Util::log_error( sprintf( $message, get_class( $this ) ) );
-
-			} else {
-
-				$unique_id = $this->object->$unique_id_field;
-
-			}
-
-			return $unique_id;
+			return Util::unique_id( $this->object );
 
 		}
 
@@ -244,6 +228,7 @@ namespace JSON_Loader {
 					Util::log_error( "Class {$generator_class} does not exist." );
 
 				}
+
 
 				/**
 				 * @var Generator $generator
@@ -479,11 +464,9 @@ namespace JSON_Loader {
 		 *
 		 * @return string
 		 */
-		function template_dir( $path = false ) {
+		function get_template_dir( $path = false ) {
 
-			$reflector = new \ReflectionClass( $this );
-
-			$template_dir = dirname( dirname( $reflector->getFileName() ) ) . '/templates';
+			$template_dir = Util::get_template_dir( $this );
 
 			return $path ? rtrim( "{$template_dir}/{$path}", '/' ) : $template_dir;
 
@@ -495,13 +478,11 @@ namespace JSON_Loader {
 		 */
 		function generate_file( $file_template, $template_type ) {
 
-			//@todo This was removed from logic before refactoring was complete. Would be nice to add back in.
-			//$filepath = $this->apply_file_template( $file_template, $properties = $this->accessible_properties() );
 			$filepath = $file_template;
 
 			if ( ! is_file( $filepath ) ) {
 
-				if ( ! is_file( $template_file = $this->template_dir( "{$template_type}.php" ) ) ) {
+				if ( ! is_file( $template_file = $this->get_template_dir( "{$template_type}.php" ) ) ) {
 
 					Util::log_error( "Template file {$template_file} does not exist." );
 
@@ -608,24 +589,6 @@ namespace JSON_Loader {
 			return $generator_slug;
 
 		}
-//
-//		/**
-//		 * @return Property[] $object
-//		 * @todo This was removed from logic before refactoring was complete. Would be nice to add back in.
-//		 */
-//		function accessible_properties() {
-//
-//			$state = $this->object_state();
-//
-//			$properties = array_merge(
-//				array_keys( get_object_vars( $this ) ),
-//				get_class_methods( $this ),
-//				Util::accessible_object_properties( $this->object )
-//			);
-//
-//			return $properties;
-//
-//		}
 
 		/**
 		 * @param string|array $dir
@@ -655,8 +618,7 @@ namespace JSON_Loader {
 		 *
 		 * @return string
 		 */
-		function get_initializers( $properties, $args = array() ) {
-
+		function get_php_initializers( $properties, $args = array() ) {
 
 			$args = Util::parse_args( $args, array(
 				'tab_count' => 3,
@@ -728,7 +690,7 @@ namespace JSON_Loader {
 
 					case 'array':
 
-						$values = $this->get_initializers( $value, array(
+						$values = $this->get_php_initializers( $value, array(
 							'tab_count' => 1 + $args[ 'tab_count' ],
 							'trim' => 'notrim',
 						));
@@ -739,7 +701,7 @@ namespace JSON_Loader {
 
 					case 'object':
 
-						$as_array = $this->get_initializers( (array) $value, $args );
+						$as_array = $this->get_php_initializers( (array) $value, $args );
 
 						$output[] = preg_replace( "#(=>\s+)(array\()#", '=>$1(object) $2', $as_array );
 						break;
@@ -824,133 +786,30 @@ namespace JSON_Loader {
 
 		}
 
-//		/**
-//		 * @param $file_template
-//		 * @param $properties
-//		 *
-//		 * @return mixed
-//		 *
-//		 * @todo This was removed from logic before refactoring was complete. Would be nice to add back in.
-//		 */
-//		function apply_file_template( $file_template, $properties ) {
-//
-//			$messages = array();
-//
-//			$values = array();
-//
-//			if ( preg_match_all( '#(.*?)\{([^\}]+)\}#', $file_template, $matches ) ) {
-//
-//				$root_properties = self::$root_object->accessible_properties();
-//
-//				foreach ( $matches[2] as $template_var ) {
-//
-//					$chain = explode( '->', $template_var );
-//
-//					$value = null;
-//
-//					foreach ( $chain as $index => $property_name ) {
-//
-//						if ( ! is_array( $properties ) ) {
-//
-//							$messages[] = sprintf( "Template var {$template_var} does not match schema for {$property_name};"
-//							                       . " \\JSON_Loader\\Object expected but %s provided.", Util::get_type( $properties ) );
-//							break;
-//
-//						}
-//
-//						$has_property      = in_array( $property_name, $properties );
-//						$has_root_property = in_array( $property_name, $root_properties ) &&
-//						                     ( 0 === $index || 1 === $index && 'root_generator' === $chain[ 0 ] );
-//
-//						if ( ! $has_property && ! $has_root_property ) {
-//
-//							$messages[] = "Template var {$template_var} does not match schema for {$property_name}.";
-//
-//						} else if ( $has_property ) {
-//
-//							$value = $this->$property_name;
-//
-//						} else if ( $has_root_property ) {
-//
-//							$value = self::$root_object->$property_name;
-//
-//						} else {
-//
-//							$messages[] = "Template var {$template_var} does not match schema for {$property_name}.";
-//							break;
-//
-//						}
-//
-//						if ( $index < count( $chain ) - 1 && method_exists( $value, 'accessible_properties' ) ) {
-//
-//							$properties = $value->accessible_properties();
-//
-//						} else {
-//
-//							$messages[] = "Property {$property_name} for template var {$template_var} is not an object.";
-//							break;
-//
-//						}
-//
-//
-//
-//					}
-//
-//					$non_castable = "Property {$property_name} for template var {$template_var} is an {type}; needs to be castable to a string.";
-//					if ( is_array( $value ) ) {
-//						$messages[] = str_replace( '{type}', 'array', $non_castable );
-//					}
-//					if ( is_object( $value ) && '' === @(string) $property ) {
-//						$messages[] = str_replace( '{type}', 'object', $non_castable );
-//					}
-//
-//					if ( is_null( $parent_value ) ) {
-//
-//						if ( $has_property ) {
-//
-//							$values[ $template_var ] = $this->$property_name;
-//
-//						} else if ( $has_root_property ) {
-//
-//							$values[ $template_var ] = self::$root_object->$property_name;
-//
-//						}
-//
-//					} else if ( $parent_value instanceof Object ) {
-//
-//						$values[ $template_var ] = $parent_value->$property_name( $value );
-//
-//					} else {
-//
-//						Util::log_error( sprintf(
-//							"{$property_name} is not a valid property of class %s.",
-//							Util::get_type( $object )
-//						) );
-//
-//					}
-//
-//				}
-//
-//			}
-//			if ( count( $messages ) ) {
-//
-//				Util::log_error( implode( "\n\t- ", $messages ) );
-//
-//			} else {
-//
-//				$filepath = $file_template;
-//
-//				foreach ( $values as $template_var => $value ) {
-//
-//					$filepath = str_replace( '{' . $template_var . '}', $value, $filepath );
-//
-//				}
-//
-//			}
-//
-//			return $filepath;
-//
-//		}
+
+
+		/**
+		 * @return array
+		 */
+		function php_initializers() {
+
+			return $this->get_php_initializers( $this->initializer_properties() );
+
+		}
+
+
+		/**
+		 * @return array
+		 */
+		function initializer_properties() {
+
+			$properties = Util::get_initializer_properties( $this->object );
+
+			$properties = Util::filter_default_values( $properties, 'default' );
+
+			return Util::explode_args( $this->object, $properties );
+
+		}
 
 	}
 

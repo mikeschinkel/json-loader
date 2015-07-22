@@ -28,6 +28,12 @@ namespace JSON_Loader {
 		static $root;
 
 		/**
+		 * @var array
+		 */
+		private static $_schemas = array();
+
+
+		/**
 		 * @param array $args
 		 * @param array|string $defaults
 		 *
@@ -284,7 +290,7 @@ namespace JSON_Loader {
 //				$state = Util::get_state( $object );
 //				$can_call = ( method_exists( $object, $method ) && is_callable( $callable ) ) ||
 //				            Util::has_property( $object, $method ) ||
-//				            ( $state->parent && Util::has_parent_property( $state->parent, $method ) );
+//				            ( $state->object_parent && Util::has_parent_property( $state->object_parent, $method ) );
 
 			}
 
@@ -309,7 +315,7 @@ namespace JSON_Loader {
 		 */
 		static function get_state_value( $object, $property_name ) {
 
-			$properties = Loader::get_state_values( $object );
+			$properties = self::get_state_values( $object );
 
 			return isset( $properties[ $property_name ] )
 				? $properties[ $property_name ]
@@ -393,29 +399,6 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string $filename
-		 *
-		 * @return string
-		 */
-		static function get_template_filepath( $filename ) {
-
-			if ( is_dir( dirname( $filename ) ) && is_file( $filename ) ) {
-
-				$filepath = $filename;
-
-			} else {
-
-				$filename = trim( $filename, '/' );
-
-				$filepath = dirname( __DIR__ ) . "/templates/{$filename}";
-
-			}
-
-			return $filepath;
-
-		}
-
-		/**
 		 * @param Object $object
 		 *
 		 * @return State $state
@@ -443,7 +426,7 @@ namespace JSON_Loader {
 			 */
 			$state = Util::get_state( $object );
 
-			return $state->parent && self::has_property( $state->parent, $property_name );
+			return $state->object_parent && self::has_property( $state->object_parent, $property_name );
 
 		}
 
@@ -468,9 +451,9 @@ namespace JSON_Loader {
 			} else {
 
 				$has_property = preg_match( '#^(__parent__|__meta__)$#', $property_name ) ||
-				                array_key_exists( $property_name, $state->schema ) ||
+				                property_exists( $state->schema, $property_name ) ||
 				                array_key_exists( $property_name, $state->extra_args ) ||
-				                property_exists( $state, $property_name );
+				                property_exists( $object, $property_name );
 			}
 
 			return $has_property;
@@ -487,6 +470,12 @@ namespace JSON_Loader {
 			if ( ! $class_name ) {
 
 				$class_name = get_called_class();
+
+			}
+
+			if ( is_object( $class_name ) ) {
+
+				$class_name = get_class( $class_name );
 
 			}
 
@@ -580,7 +569,7 @@ namespace JSON_Loader {
 		 *
 		 * @return array
 		 */
-		static function get_initializers( $object ) {
+		static function get_initializer_properties( $object ) {
 
 			$initializers = array();
 
@@ -631,7 +620,7 @@ namespace JSON_Loader {
 
 						$property->value = $value;
 
-						$state->values[ $property_name ] = $value;
+						$state->set_value( $property_name, $value );
 
 						Util::set_state( $object, $state );
 
@@ -645,24 +634,260 @@ namespace JSON_Loader {
 
 		}
 
-//		/**
-//		 * @return Object $object
-//		 *
-//		 * @todo This was removed from logic before refactoring was complete. Would be nice to add back in.
-//		 */
-//		static function accessible_object_properties( $object ) {
-//
-//			$state = Util::get_state( $object );
-//
-//			$properties = array_merge(
-//				get_class_methods( $object ),
-//				array_keys( $state->schema ),
-//				array_keys( $state->extra_args )
-//			);
-//
-//			return $properties;
-//
-//		}
+		/**
+		 * @param string $filename
+		 * @param string $class_name
+		 *
+		 * @return string
+		 */
+		static function get_template_filepath( $filename, $class_name ) {
+
+			if ( is_dir( dirname( $filename ) ) && is_file( $filename ) ) {
+
+				$filepath = $filename;
+
+			} else {
+
+				$filename = trim( $filename, '/' );
+
+
+
+				$filepath = static::get_template_dir( $class_name ) . "/{$filename}";
+
+			}
+
+			return $filepath;
+
+		}
+
+		/**
+		 * @param object|string $class
+		 *
+		 * @return string
+		 */
+		static function get_template_dir( $class ) {
+
+			$reflector = new \ReflectionClass( is_object( $class ) ? get_class( $class ) : $class );
+
+			return dirname( dirname( $reflector->getFileName() ) ) . '/templates';
+
+		}
+
+
+		/**
+		 * @param Object $object
+		 * @return string
+		 */
+		static function unique_id( $object ) {
+
+			if ( ! ( $unique_id_field = Util::get_constant( 'UNIQUE_ID', $object ) ) ) {
+
+				$unique_id_field = Util::get_constant( 'SLUG', $object );
+
+			}
+
+			$state = Util::get_state( $object );
+
+			if ( ! $state->has_value( $unique_id_field ) ) {
+
+				$message = "No UNIQUE_ID constant set in class %s. UNIQUE_ID identifies the field name contain a unique identifying value.";
+
+				Util::log_error( sprintf( $message, get_class( $object ) ) );
+
+			}
+
+			return Util::dashify( $object->$unique_id_field );
+
+		}
+
+		/**
+		 * @param Object $object
+		 *
+		 * @return bool
+		 */
+		static function has_object_schema( $object ) {
+
+			return self::has_class_schema( $object ) &&
+				array_key_exists( spl_object_hash( $object ), self::$_schemas[ get_class( $object ) ] );
+
+		}
+
+		/**
+		 * @param Object|string $object
+		 *
+		 * @return bool
+		 */
+		static function has_class_schema( $object ) {
+
+			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
+
+			return array_key_exists( $class_name, self::$_schemas );
+
+		}
+
+
+		/**
+		 * @param Object|string $object
+		 * @param Object $parent
+		 *
+		 * @return State
+		 */
+		static function clone_object_schema( $object, $parent ) {
+
+			/**
+			 * @var State $schema
+			 */
+			if ( self::has_class_schema( $object ) && count( self::$_schemas[ $class_name = get_class( $object ) ] ) ) {
+
+				$schema = clone( reset( self::$_schemas[ $class_name ] ) );
+				$schema->object_parent = $parent;
+
+			} else {
+
+				$schema = null;
+
+			}
+
+			return $schema;
+
+		}
+
+		/**
+		 * @param Object|string $object
+		 * @param State $schema
+		 */
+		static function set_object_schema( $object, $schema ) {
+
+			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
+
+			if ( ! self::has_class_schema( $object ) ) {
+				self::$_schemas[ $class_name ] = array();
+			}
+
+			self::$_schemas[ $class_name ][ spl_object_hash( $object ) ] = $schema;
+
+		}
+
+		/**
+		 * @param Object|string $object
+		 * @return State
+		 */
+		static function get_object_schema( $object ) {
+
+			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
+
+			return self::has_class_schema( $object )
+				? self::$_schemas[ $class_name ][ spl_object_hash( $object ) ]
+				: null;
+
+		}
+
+		/**
+		 * @param Object $object
+		 * @param int|Property $property
+		 * @param string $namespace
+		 * @param mixed $value
+		 *
+		 * @return mixed
+		 */
+		public static function instantiate_value( $object, $property, $namespace, $value ) {
+
+			$current_type = $property->get_current_type( $value );
+
+			switch ( $base_type = $current_type->base_type ) {
+
+				case 'string':
+				case 'int':
+				case 'bool':
+				case 'boolean':
+
+					// Do nothing
+					break;
+
+				case 'array':
+				case 'object':
+				default:
+
+					if ( is_null( $value ) ) {
+						/**
+						 * First parameter to class instantiation represents the properties
+						 * and values to instatiate the object with thus it can be an array
+						 * or an object, but it CANNOT be null. So default to array with no
+						 * properties and values if null.
+						 */
+						$value = array();
+					}
+					if ( $current_type->array_of ) {
+
+						foreach ( (array) $value as $index => $element_value ) {
+
+							$element_type = $current_type->element_type();
+
+							$parent_object = is_subclass_of( $element_value, '\JSON_Loader\Object' )
+								? $element_value
+								: $object;
+
+							$value[ $index ] = self::instantiate_value(
+								$parent_object,
+								new Property( $index, $element_type, $namespace, array(
+									'parent_object' => $parent_object,
+								) ),
+								$namespace,
+								$element_value
+							);
+
+						}
+						break;
+
+					} else if ( $current_type->class_name ) {
+
+						$class_name = $current_type->class_name;
+
+						$value = new $class_name( (array) $value, $object );
+						break;
+
+					}
+
+			}
+
+			return $value;
+
+		}
+
+		/**
+		 * @param Object $object
+		 * @param string $property_name
+		 *
+		 * @return State $state
+		 */
+		public static function has_state_value( $object, $property_name ) {
+
+			return property_exists( self::get_state( $object ), $property_name );
+
+		}
+
+		/**
+		 * @param Object $object
+		 *
+		 * @return Object[]|mixed[]
+		 */
+		public static function get_state_values( $object ) {
+
+			if ( ! $object instanceof Object ) {
+
+				$properties = array();
+
+			} else {
+
+				$state = self::get_state( $object );
+
+				$properties = $state->values();
+
+			}
+
+			return $properties;
+
+		}
 
 	}
 

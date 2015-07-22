@@ -64,7 +64,7 @@ namespace JSON_Loader {
 		/**
 		 * @var Object
 		 */
-		var $parent;
+		var $parent_object;
 
 		/**
 		 * @param string $property_name
@@ -103,7 +103,7 @@ namespace JSON_Loader {
 			}
 
 			/**
-			 * Let parent assign $args to properties
+			 * Let object_parent assign $args to properties
 			 */
 			parent::__construct( $args );
 
@@ -171,7 +171,7 @@ namespace JSON_Loader {
 		 */
 		function identifier() {
 
-			return get_class( $this->parent ) . "->{$this->property_name}";
+			return get_class( $this->parent_object ) . "->{$this->property_name}";
 
 		}
 
@@ -233,7 +233,7 @@ namespace JSON_Loader {
 		 */
 		function value() {
 
-			$object = $this->parent;
+			$object = $this->parent_object;
 
 			$property_name = $this->property_name;
 
@@ -243,7 +243,7 @@ namespace JSON_Loader {
 
 			} else if ( Util::has_parent_property( $object, $property_name ) ) {
 
-				$value = $object->parent->$property_name;
+				$value = $object->parent_object->$property_name;
 
 			} else {
 
@@ -251,7 +251,7 @@ namespace JSON_Loader {
 
 				Util::log_error( sprintf(
 					"Class %s does not have property in State->schema or ->values when attempting to get Property->value for property %s",
-					get_class( $this->parent ),
+					get_class( $this->parent_object ),
 					$property_name
 				) );
 
@@ -262,7 +262,7 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * Return the 'State' object of this Property's parent Object.
+		 * Return the 'State' object of this Property's object_parent Object.
 		 *
 		 * @return State
 		 */
@@ -271,14 +271,14 @@ namespace JSON_Loader {
 			/**
 			 * @var Object $object
 			 */
-			$object = $this->parent;
+			$object = $this->parent_object;
 
 			return Util::get_state( $object );
 
 		}
 
 		/**
-		 * Return the 'State' object of this Property's parent Object.
+		 * Return the 'State' object of this Property's object_parent Object.
 		 *
 		 * @param State $state
 		 */
@@ -287,7 +287,7 @@ namespace JSON_Loader {
 			/**
 			 * @var Object $object
 			 */
-			$object = $this->parent;
+			$object = $this->parent_object;
 
 			Util::set_state( $object, $state );
 
@@ -297,7 +297,7 @@ namespace JSON_Loader {
 		 * Special case to get 'Value'
 		 *
 		 * Get the $property_name element of the 'values' array from the State of this
-		 * Property's parent Object if it exists or property is not 'value', then fail.
+		 * Property's object_parent Object if it exists or property is not 'value', then fail.
 		 *
 		 * @param string $property_name
 		 * @return mixed
@@ -313,8 +313,8 @@ namespace JSON_Loader {
 				$value = null;
 
 				Util::log_error( sprintf(
-					"Class %s does not have property in State->schema or ->values when attempting to set Property->value for property %s",
-					get_class( $this->parent ),
+					"Class %s does not have property in State->schema or ->values when attempting to get Property->value for property %s",
+					get_class( $this->parent_object ),
 					$property_name
 				));
 
@@ -328,7 +328,7 @@ namespace JSON_Loader {
 		 * Special case to set 'Value'
 		 *
 		 * Set the $property_name element of the 'values' array in the State of this
-		 * Property's parent Object if it exists, otherwise fail.
+		 * Property's object_parent Object if it exists, otherwise fail.
 		 * If not 'value' just set the property.
 		 *
 		 * @param string $property_name
@@ -340,15 +340,15 @@ namespace JSON_Loader {
 
 				$state = $this->parent_state();
 
-				if ( array_key_exists( $this->property_name, $state->values ) ) {
+				if ( $state->has_value( $this->property_name ) ) {
 
-					$state->values[ $this->property_name ] = $value;
+					$state->set_value( $this->property_name, $value );
 
 				} else {
 
 					Util::log_error( sprintf(
 						"Class %s does not have property in State->schema or ->values when attempting to set Property->value for property %s",
-						get_class( $this->parent ),
+						get_class( $this->parent_object ),
 						$property_name
 					));
 

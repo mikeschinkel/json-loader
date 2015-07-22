@@ -15,11 +15,6 @@ namespace JSON_Loader {
 		static $logger;
 
 		/**
-		 * @var Object[][]
-		 */
-		static $schemas = array();
-
-		/**
 		 * @var mixed[]|Property[]
 		 */
 		static $properties = array();
@@ -112,75 +107,68 @@ namespace JSON_Loader {
 		 */
 		static function parse_class_header( $object, $parent ) {
 
-			$class_name = get_class( $object );
+			if ( Util::has_class_schema( $object ) ) {
 
-			$hash = spl_object_hash( $object );
+				$state = Util::clone_object_schema( $object, $parent );
 
-			if ( empty( self::$schemas[ $class_name ][ $hash ] ) ) {
+			} else {
 
-				if ( isset( self::$schemas[ $class_name ] ) ) {
+				$class_name = get_class( $object );
 
-					$state = clone( reset( self::$schemas[ $class_name ] ) );
+				$state = new State( $object, $parent );
 
-					$state->parent = $parent;
+				$class_reflector = new \ReflectionClass( $class_name );
 
-				} else {
+				$state->namespace = $class_reflector->getNamespaceName();
 
-					$state = new State( $parent );
+				$lines = explode( "\n", $class_reflector->getDocComment() );
 
-					$class_reflector = new \ReflectionClass( $class_name );
+				for ( $index = 0; count( $lines ) > $index; $index ++ ) {
 
-					$state->namespace = $class_reflector->getNamespaceName();
+					$line = $lines[ $index ];
 
-					$lines = explode( "\n", $class_reflector->getDocComment() );
+					if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
 
-					for ( $index = 0; count( $lines ) > $index; $index ++ ) {
+						list( $line, $type, $property_name ) = $match;
 
-						$line = $lines[ $index ];
+						$args = array( 'description' => $match[3] );
 
-						if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
+						if ( isset( $match[6] ) ) {
 
-							list( $line, $type, $property_name ) = $match;
+							$subproperties = $match[6];
 
-							$args = array( 'description' => $match[3] );
+							if ( isset( $match[7] ) && '}' !== $match[7] ) {
 
-							if ( isset( $match[6] ) ) {
+								while ( false === strpos( $subproperties, '}' ) && count( $lines ) > ++ $index ) {
 
-								$subproperties = $match[6];
-
-								if ( isset( $match[7] ) && '}' !== $match[7] ) {
-
-									while ( false === strpos( $subproperties, '}' ) && count( $lines ) > ++ $index ) {
-
-										$subproperties .= preg_replace( '#^\s*\*\s*(@.*)#', '$1', $lines[ $index ] );
-
-									}
-
-									$subproperties = preg_replace( '#^(.*)\}#', '$1', $subproperties );
+									$subproperties .= preg_replace( '#^\s*\*\s*(@.*)#', '$1', $lines[ $index ] );
 
 								}
 
-								$args = array_merge( $args, self::parse_sub_values( $subproperties, $type ) );
+								$subproperties = preg_replace( '#^(.*)\}#', '$1', $subproperties );
 
 							}
 
-							$args['parent'] = $object;
-
-							$property = new Property( $property_name, $type, $state->namespace, $args );
-
-							$state->schema[ $property_name ] = $property;
+							$args = array_merge( $args, self::parse_sub_values( $subproperties, $type ) );
 
 						}
+
+						$args['parent_object'] = $object;
+
+						$property = new Property( $property_name, $type, $state->namespace, $args );
+
+						$state->schema->$property_name = $property;
 
 					}
 
 				}
 
-				self::$schemas[ $class_name ][ $hash ] = $state;
 
 			}
 
-			return self::$schemas[ $class_name ][ $hash ];
+			Util::set_object_schema( $object, $state );
+
+			return Util::get_object_schema( $object );
 
 		}
 
@@ -261,11 +249,26 @@ namespace JSON_Loader {
 
 			}
 
-			foreach ( $schema as $property_name => $attributes ) {
+			foreach ( (array) $schema as $property_name => $attributes ) {
 
 				if ( ! isset( $data->$property_name ) || is_null( $data->$property_name ) ) {
 
-					$data->$property_name = ! is_null( $attributes->default ) ? $attributes->default : null;
+					if ( is_null( $attributes->default ) ) {
+
+						$data->$property_name = null;
+
+					} else if ( preg_match( '#^\$(\w+)$#', $attributes->default, $match ) ) {
+
+						$data_property = $match[ 1 ];
+
+						$data->$property_name = isset( $data->$data_property ) ? $data->$data_property : null;
+
+					} else {
+
+						$data->$property_name = $attributes->default;
+
+					}
+
 
 				}
 
@@ -274,111 +277,6 @@ namespace JSON_Loader {
 			return $was_array ? (array) $data : $data;
 
 		}
-
-		/**
-		 * @param Object $object
-		 * @param int|Property $property
-		 * @param string $namespace
-		 * @param mixed $value
-		 *
-		 * @return mixed
-		 */
-		static function instantiate_value( $object, $property, $namespace, $value ) {
-
-			$current_type = $property->get_current_type( $value );
-
-			switch ( $base_type = $current_type->base_type ) {
-
-				case 'string':
-				case 'int':
-				case 'bool':
-				case 'boolean':
-
-					// Do nothing
-					break;
-
-				case 'array':
-				case 'object':
-				default:
-
-					if ( is_null( $value ) ) {
-						/**
-						 * First parameter to class instantiation represents the properties
-						 * and values to instatiate the object with thus it can be an array
-						 * or an object, but it CANNOT be null. So default to array with no
-						 * properties and values if null.
-						 */
-						$value = array();
-					}
-					if ( $current_type->array_of ) {
-
-						foreach ( (array) $value as $index => $element_value ) {
-
-							$element_type = $current_type->element_type();
-
-							$value[ $index ] = self::instantiate_value(
-								$object,
-								new Property( $index, $element_type, $namespace, array(
-									'parent' => $object,
-								) ),
-								$namespace,
-								$element_value
-							);
-
-						}
-						break;
-
-					} else if ( $current_type->class_name ) {
-
-						$class_name = $current_type->class_name;
-
-						$value = new $class_name( (array) $value, $object );
-						break;
-
-					}
-
-			}
-
-			return $value;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string $property_name
-		 *
-		 * @return State $state
-		 */
-		static function has_state_value( $object, $property_name ) {
-
-			return property_exists( Util::get_state( $object ), $property_name );
-
-		}
-
-
-		/**
-		 * @param Object $object
-		 *
-		 * @return Object[]|mixed[]
-		 */
-		static function get_state_values( $object ) {
-
-			if ( ! $object instanceof Object ) {
-
-				$properties = array();
-
-			} else {
-
-				$state = Util::get_state( $object );
-
-				$properties = $state->values;
-
-			}
-
-			return $properties;
-
-		}
-
 
 
 	}
