@@ -285,13 +285,6 @@ namespace JSON_Loader {
 
 				} while ( false );
 
-//   We may still need some of this logic.
-//
-//				$state = Util::get_state( $object );
-//				$can_call = ( method_exists( $object, $method ) && is_callable( $callable ) ) ||
-//				            Util::has_property( $object, $method ) ||
-//				            ( $state->object_parent && Util::has_parent_property( $state->object_parent, $method ) );
-
 			}
 
 			return $can_call;
@@ -680,7 +673,7 @@ namespace JSON_Loader {
 		 */
 		static function unique_id( $object ) {
 
-			if ( ! ( $unique_id_field = Util::get_constant( 'UNIQUE_ID', $object ) ) ) {
+			if ( ! ( $unique_id_field = Util::get_constant( 'ID_FIELD', $object ) ) ) {
 
 				$unique_id_field = Util::get_constant( 'SLUG', $object );
 
@@ -690,7 +683,7 @@ namespace JSON_Loader {
 
 			if ( ! $state->has_value( $unique_id_field ) ) {
 
-				$message = "No UNIQUE_ID constant set in class %s. UNIQUE_ID identifies the field name contain a unique identifying value.";
+				$message = "No ID_FIELD constant set in class %s. ID_FIELD identifies the field name contain a unique identifying value.";
 
 				Util::log_error( sprintf( $message, get_class( $object ) ) );
 
