@@ -30,7 +30,7 @@ namespace JSON_Loader {
 		var $output_files = array();
 
 		/**
-		 * @var array Generators registered
+		 * @var Generator[] Generators registered
 		 */
 		var $generators = array();
 
