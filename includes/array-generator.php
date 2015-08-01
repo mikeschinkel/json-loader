@@ -36,12 +36,15 @@ namespace JSON_Loader {
 
 			foreach( $this->values as $index => $value ) {
 
-				/**
-				 * @var Generator $generator
-				 */
-				$generator = new $generator_class( $value, $this->parent, $this->args );
+				if ( 0 < $index ) {
+					/**
+					 * @todo Yes, this is really screwy. We'd need to rearchitect to fix it eventually.
+					 */
+					$s = Util::get_state( $value );
+					Util::get_state( $s->owner )->set_values( $s->values() );
+				}
 
-				$generator->generate( $value, $generator );
+				Generator::generate( $value, new $generator_class( $value, $this->parent, $this->args ) );
 
 			}
 
