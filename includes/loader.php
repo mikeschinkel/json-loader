@@ -106,30 +106,61 @@ namespace JSON_Loader {
 		 * @return State
 		 */
 		static function parse_class_header( $object, $parent ) {
-
+			/**
+			 * Merge in parent class' schema
+			 */
 			if ( Util::has_class_schema( $object ) ) {
 
 				$state = Util::clone_object_schema( $object, $parent );
 
 			} else {
 
-				$class_name = get_class( $object );
+				$class_names = array( $class_name = get_class( $object ) );
+
+				do {
+					if ( $parent_class = get_parent_class( end( $class_names ) ) ) {
+						$class_names[] = $parent_class;
+					}
+				} while ( $parent_class );
+
 
 				$state = new State( $object, $parent );
+				$state->namespace = $class_name[0];
 
-				$class_reflector = new \ReflectionClass( $class_name );
+				$lines = '';
 
-				$state->namespace = $class_reflector->getNamespaceName();
+				$namespaces = array();
 
-				$lines = explode( "\n", $class_reflector->getDocComment() );
+				foreach( array_reverse( $class_names ) as $class_name ) {
+
+					$reflector = new \ReflectionClass( $class_name );
+
+					$lines .= "@namespace {$reflector->getNamespaceName()}\n{$reflector->getDocComment()}\n";
+
+				}
+
+				$lines = explode( "\n", $lines );
 
 				for ( $index = 0; count( $lines ) > $index; $index ++ ) {
 
 					$line = $lines[ $index ];
 
-					if ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
+					if ( preg_match( '#^\s*@namespace\s+(\w+)\s*$#', $line, $match ) ) {
+
+						list( $line, $namespace ) = $match;
+
+					} elseif ( preg_match( '#^\s+\*\s*@property\s+([^ ]+)\s+\$([^ ]+)\s*(.*?)\s*((\{)(.*?)(\}?))?\s*$#', $line, $match ) ) {
 
 						list( $line, $type, $property_name ) = $match;
+
+						if ( preg_match( '#^__[^_]+__$#', $property_name ) ) {
+
+							/*
+							 * Don't process the internal properties __parent__ and __meta__
+							 */
+							continue;
+
+						}
 
 						$args = array( 'description' => $match[3] );
 
@@ -155,7 +186,7 @@ namespace JSON_Loader {
 
 						$args['parent_object'] = $object;
 
-						$property = new Property( $property_name, $type, $state->namespace, $args );
+						$property = new Property( $property_name, $type, $namespace, $args );
 
 						$state->schema->$property_name = $property;
 
@@ -256,6 +287,7 @@ namespace JSON_Loader {
 					if ( is_null( $attributes->default ) ) {
 
 						$data->$property_name = null;
+//						$data->$property_name = method_exists( $attributes, 'value' ) ? $attributes->value() : null;
 
 					} else if ( preg_match( '#^\$(\w+)$#', $attributes->default, $match ) ) {
 

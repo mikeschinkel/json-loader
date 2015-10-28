@@ -212,7 +212,7 @@ namespace JSON_Loader {
 		 * @param Object $object
 		 * @param string|Generator $generator
 		 */
-		static function generate( $object, $generator = 'Root_Generator' ) {
+		static function generate( $object, $generator = 'Generator' ) {
 
 			if ( is_string( $generator ) ) {
 				/**
@@ -527,7 +527,7 @@ namespace JSON_Loader {
 								/**
 								 * Capture what is in /includes/{filename}.php
 								 */
-								require( dirname( $template_file ) . "/includes/{$match[ 4 ]}.php" );
+								require( dirname( $template_file ) . "/includes/{$match[4]}.php" );
 
 								$include[] = $match[ 2 ] . ltrim( implode( "\n", array_map( function( $line ) use( $match ) {
 									return "{$match[ 3 ]}{$line}";
@@ -708,7 +708,6 @@ namespace JSON_Loader {
 
 					default:
 
-						echo '';
 						break;
 
 				}
@@ -765,6 +764,10 @@ namespace JSON_Loader {
 			} else if ( Util::has_property( $this->object, $property_name ) ) {
 
 				$value = $this->object->$property_name;
+
+			} else if ( isset( $this->parent->object ) && Util::has_property( $this->parent->object, $property_name ) ) {
+
+				$value = $this->parent->$property_name;
 
 			} else {
 

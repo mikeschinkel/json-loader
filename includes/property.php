@@ -239,7 +239,7 @@ namespace JSON_Loader {
 
 			if ( Util::has_property( $object, $property_name ) ) {
 
-				$value = $object->$property_name;
+				$value = Util::get_state( $object )->get_value( $property_name );
 
 			} else if ( Util::has_parent_property( $object, $property_name ) ) {
 

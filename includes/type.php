@@ -142,6 +142,9 @@ namespace JSON_Loader {
 
 					$is_equal = true;
 
+				} else {
+
+					$is_equal = false;
 				}
 
 			} else if ( 'object' === $type_as_string && $this->class_name ) {

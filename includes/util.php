@@ -318,24 +318,24 @@ namespace JSON_Loader {
 
 		/**
 		 * @param string $identifier
-		 * @param string $short_prefix
+		 * @param string $prefix
 		 *
 		 * @return string
 		 */
-		static function get_prefixed_identifier( $identifier, $short_prefix ) {
+		static function get_prefixed_identifier( $identifier, $prefix ) {
 
 			/**
 			 * Convert all identifiers to using lowercase and underscores
 			 */
 			$identifier = Util::underscorify( strtolower( $identifier ) );
 
-			$regex = '#^' . preg_quote( "{$short_prefix}_" ) . '#';
+			$regex = '#^' . preg_quote( "{$prefix}_" ) . '#';
 
 			if ( ! preg_match( $regex, $identifier ) ) {
 				/**
 				 * If the post type was not prefixed with short prefix, prefix it.
 				 */
-				$identifier = "{$short_prefix}_{$identifier}";
+				$identifier = "{$prefix}_{$identifier}";
 
 			}
 
@@ -388,6 +388,27 @@ namespace JSON_Loader {
 			return is_string( $value )
 				? array_map( 'trim', explode( ',', $value ) )
 				: $value;
+
+//			do {
+//
+//				if ( is_null( $value ) ) {
+//					$value = array();
+//					break;
+//				}
+//
+//				if ( is_string( $value ) ) {
+//					$value = array_map( 'trim', explode( ',', $value ) );
+//					break;
+//				}
+//
+//				if ( ! is_array( $value ) ) {
+//					$value = array( $value );
+//					break;
+//				}
+//
+//			} while ( false );
+//
+//			return $value;
 
 		}
 

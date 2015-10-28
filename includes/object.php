@@ -41,6 +41,8 @@ namespace JSON_Loader {
 
 			$this->_state_ = $state = Loader::parse_class_header( $this, $parent );
 
+			Util::set_state( $this, $state );
+
 			$value = Loader::set_object_defaults( $state->schema, $value );
 
 			foreach ( $value as $property_name => $property_value ) {
@@ -78,6 +80,10 @@ namespace JSON_Loader {
 
 					} else {
 
+						if ( is_null( $property_value ) ) {
+							$property_value = $state->get_value( $property_name );
+						}
+
 						$state->set_value( $property_name, Util::instantiate_value(
 							$this,
 							$state->schema->$property_name,
@@ -89,8 +95,6 @@ namespace JSON_Loader {
 				}
 
 			}
-
-			Util::set_state( $this, $state );
 
 			parent::__construct( $args );
 
@@ -138,7 +142,7 @@ namespace JSON_Loader {
 
 			} else if ( array_key_exists( $property_name, $state->extra_args ) ) {
 
-				/**
+				/*
 				 * @todo Is this ever used?  If yes, then it will fail for arrays because there will only be one for every array element.
 				 *       Not sure how to fix yet.
 				 */
@@ -147,7 +151,7 @@ namespace JSON_Loader {
 			} else if ( $state->object_parent instanceof Object &&
 			            ( Util::has_property( $state->object_parent, $property_name ) || Util::can_call( array( $state->object_parent, $property_name ) ) ) ) {
 
-				/**
+				/*
 				 * Bubble up...
 				 */
 				$value = $state->object_parent->__get( $property_name );

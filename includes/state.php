@@ -94,7 +94,7 @@ namespace JSON_Loader {
 		 */
 		function set_value( $property_name, $value ) {
 
-			$this->_values[ $this->object_hash() ][ $property_name ] = $value;
+			$this->_values[ $property_name ] = $value;
 
 		}
 
@@ -105,7 +105,47 @@ namespace JSON_Loader {
 		 */
 		function get_value( $property_name ) {
 
-			return $this->_values[ $this->object_hash() ][ $property_name ];
+			do {
+
+				$value = isset( $this->_values[ $property_name ] ) ? $this->_values[ $property_name ] : null;
+
+				if ( ! is_null( $value ) ) {
+					break;
+				}
+
+				/*
+				 * If null and there is a callable for this property, get and cache it via __get()
+				 */
+				if ( is_object( $this->owner ) && Util::can_call( $callable = array( $this->owner, $property_name ) ) ) {
+
+					$this->cached[ $property_name ] = $value = call_user_func( $callable, null );
+
+					if ( ! is_null( $value ) ) {
+						break;
+					}
+
+				}
+
+
+				if ( ! isset( $this->object_parent ) ) {
+					break;
+				}
+
+				if ( ! $this->object_parent instanceof \JSON_Loader\Object ) {
+					break;
+				}
+
+				$state = Util::get_state( $this->object_parent );
+
+				if ( ! $state->has_value( $property_name ) ) {
+					break;
+				}
+
+				$value = $state->get_value( $property_name );
+
+			} while ( false );
+
+			return $value;
 
 		}
 
@@ -116,7 +156,7 @@ namespace JSON_Loader {
 		 */
 		function has_value( $property_name ) {
 
-			return array_key_exists( $property_name, $this->_values[ $this->object_hash() ] );
+			return array_key_exists( $property_name, $this->_values );
 
 		}
 
@@ -125,7 +165,7 @@ namespace JSON_Loader {
 		 */
 		function values() {
 
-			return $this->_values[ $this->object_hash() ];
+			return $this->_values;
 
 		}
 
@@ -134,7 +174,7 @@ namespace JSON_Loader {
 		 */
 		function set_values( $values ) {
 
-			$this->_values[ $this->object_hash() ] = $values;
+			$this->_values = $values;
 
 		}
 
