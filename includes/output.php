@@ -6,11 +6,11 @@ namespace JSON_Loader {
 
 		/**
 		 * @param Object $object
-		 * @param int $level
+		 * @param integer $level
 		 */
 		static function show_data( $object, $level = 0 ) {
 
-			$properties = Util::get_state_values( $object );
+			$properties = Util::get_schema_values( $object );
 			$width      = 0;
 			$rearranged = array();
 			foreach ( $properties as $field => $value ) {
@@ -76,7 +76,7 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param int $level
+		 * @param integer $level
 		 * @param $string
 		 * @param $width
 		 */
@@ -86,5 +86,6 @@ namespace JSON_Loader {
 			echo "\n{$indent}" . str_pad( "{$string}: ", 2 + $width );
 
 		}
+
 	}
 }

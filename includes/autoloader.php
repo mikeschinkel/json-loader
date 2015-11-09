@@ -25,6 +25,6 @@ class Autoloader {
 	}
 
 }
-spl_autoload_register( array( '\JSON_Loader\AutoLoader', 'autoload' ), true, true );
+spl_autoload_register( array( '\JSON_Loader\AutoLoader', 'autoload' ) );
 
 

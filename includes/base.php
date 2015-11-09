@@ -19,9 +19,10 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param $args
+		 * @param array $args
 		 */
 		function set_args( $args ) {
+
 			if ( is_string( $args ) ) {
 
 				parse_str( $args, $args );

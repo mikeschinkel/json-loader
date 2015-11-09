@@ -11,18 +11,13 @@ namespace JSON_Loader {
 	 *
 	 * @property string $root_dir
 	 * @property string $root_object
-	 * @property string $unique_id
+	 * @property string $object_unique_id
 	 */
 	abstract class Generator extends Base {
 
 		const SLUG = 'generator';
 
 		const TAB_WIDTH = 4;
-
-		/**
-		 * @var \JSON_Loader\Object Root object
-		 */
-		static $root_generator;
 
 		/**
 		 * @var array Files to generate
@@ -60,6 +55,11 @@ namespace JSON_Loader {
 		var $parent;
 
 		/**
+		 * @var \JSON_Loader\Object Root object
+		 */
+		static $root_generator;
+
+		/**
 		 * @param Object $object
 		 * @param Generator $parent
 		 * @param array $args
@@ -75,6 +75,35 @@ namespace JSON_Loader {
 			$this->initialize( $object, $parent );
 
 			parent::__construct( $args );
+		}
+
+		/**
+		 * @param \JSON_Loader\Object $object
+		 * @param Generator $parent
+		 */
+		static function generate( $object, $parent = null ) {
+
+			if ( is_null( $parent ) ) {
+
+				$object_class = get_class( $object );
+
+				$generator_class = "{$object_class}_Generator";
+
+				if ( ! class_exists( $generator_class, true ) ) {
+
+					Util::log_error( "Class {$generator_class} does not exist." );
+
+				}
+
+				/**
+				 * @var Generator $generator
+				 */
+				$parent = new $generator_class( $object, $parent );
+
+			}
+
+			$parent->execute();
+
 		}
 
 		/**
@@ -99,46 +128,18 @@ namespace JSON_Loader {
 
 
 		/**
-		 * @return State
-		 */
-		function object_state() {
-
-			/**
-			 * @var Object $object
-			 */
-			$object = $this->object;
-
-			return Util::get_state( $object );
-
-		}
-
-		/**
-		 * @param State $state
-		 */
-		function set_object_state( $state ) {
-
-			/**
-			 * @var Object $object
-			 */
-			$object = $this->object;
-
-			Util::set_state( $object, $state );
-
-		}
-
-		/**
 		 * @return string
 		 */
-		function unique_id() {
+		function object_unique_id() {
 
-			return Util::unique_id( $this->object );
+			return $this->object->get_unique_id();
 
 		}
 
 		/**
 		 * Returns a file name prefixed with a slug and dashified.
 		 *
-		 * @param bool|string $suffix
+		 * @param boolean|string $suffix
 		 * @return string
 		 */
 		function filenameify( $suffix = false ) {
@@ -170,92 +171,20 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @return Object
-		 */
-		function root() {
-
-			return Util::root();
-
-		}
-
-		/**
-		 *
-		 */
-		function root_dir() {
-
-			if ( ! ( $root_dir = Util::root()->root_dir ) ) {
-
-				$root_dir = getcwd();
-
-			} else {
-
-				if ( ! preg_match( '#^(~|/)$#', $root_dir[0] ) ) {
-
-					/**
-					 * Normalize directory format.
-					 *
-					 * @todo Make work for Windows.
-					 */
-
-					$root_dir = "~/{$root_dir}";
-
-				}
-
-				$root_dir = preg_replace( '#^~/(.*)$#', getcwd() . '/$1', $root_dir );
-
-			}
-			return $root_dir;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string|Generator $generator
-		 */
-		static function generate( $object, $generator = 'Generator' ) {
-
-			if ( is_string( $generator ) ) {
-				/**
-				 * Must be a classname
-				 */
-				$generator_class = Util::get_qualified_class_name(
-					$generator,
-					Util::get_namespace( $object )
-				);
-
-				if ( ! class_exists( $generator_class ) ) {
-
-					Util::log_error( "Class {$generator_class} does not exist." );
-
-				}
-
-
-				/**
-				 * @var Generator $generator
-				 */
-				$generator = new $generator_class( $object, $generator );
-
-			}
-
-			$generator->execute();
-
-		}
-
-		/**
 		 * @param string $generator_slug
-		 * @param Object|array $value
+		 * @param \JSON_Loader\Object|array $value
 		 * @param array $args {
 		 *
-		 * @type string|bool $generator_class
+		 * @type string|boolean $generator_class
 		 * }
 		 */
 		function register_generator( $generator_slug, $value, $args = array() ) {
 
-			$args = array_merge( array(
+			$args = Util::parse_args( $args, array(
 				'generator_class' => false,
 				'element_slug'    => false,
 				'property_name'   => Util::underscorify( $generator_slug ),
-			), $args );
+			));
 
 			$generator_slug = Util::dashify( $generator_slug );
 
@@ -370,6 +299,15 @@ namespace JSON_Loader {
 		}
 
 		/**
+		 * @param string $dir
+		 */
+		function register_dir( $dir ) {
+
+			$this->dirs[] = $dir;
+
+		}
+
+		/**
 		 * @param string|array $dirs
 		 */
 		function register_dirs( $dirs ) {
@@ -411,10 +349,7 @@ namespace JSON_Loader {
 				 */
 				foreach ( $dirs as $dir ) {
 
-					//@todo This was removed from logic before refactoring was complete. Would be nice to add back in.
-					//$dir = $this->apply_file_template( $dir, $this->accessible_properties() );
-
-					self::mkdir( $dir );
+					Util::mkdir( $dir );
 
 				}
 
@@ -433,34 +368,17 @@ namespace JSON_Loader {
 
 				foreach ( $generators as $generator_slug => $generator ) {
 
-					$generator_slug = Util::underscorify( $generator_slug );
-
-					if ( ! is_array( $generator ) ) {
-
-						/**
-						 * @var Generator $generator
-						 */
-						self::generate( $this->object->$generator_slug, $generator );
-
-					} else {
-
-						$values = $this->object->$generator_slug;
-
-						foreach ( $generator as $index => $element_generator ) {
-
-							self::generate( $values[ $index ], $element_generator );
-
-						}
-
-					}
+					$value = $this->get_object_value( Util::underscorify( $generator_slug ) );
+					self::generate( $value, $generator );
 
 				}
+
 			}
 
 		}
 
 		/**
-		 * @param bool|string $path
+		 * @param boolean|string $path
 		 *
 		 * @return string
 		 */
@@ -554,7 +472,7 @@ namespace JSON_Loader {
 		 * @param string $generator_slug
 		 * @param string $namespace
 		 *
-		 * @return bool
+		 * @return boolean
 		 */
 		function get_generator_class( $generator_slug, $namespace ) {
 
@@ -576,9 +494,9 @@ namespace JSON_Loader {
 		/**
 		 * @return string|null
 		 */
-		static function generator_slug() {
+		function generator_slug() {
 
-			$generator_slug = constant( get_called_class() . '::SLUG' );
+			$generator_slug = constant( get_class( $this ) . '::SLUG' );
 
 			if ( empty( $generator_slug ) ) {
 
@@ -591,34 +509,27 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string|array $dir
-		 */
-		static function mkdir( $dir = array() ) {
-
-			$dirs = ! is_array( $dir ) ? array( $dir ) : $dir;
-
-			foreach ( $dirs as $dir ) {
-
-				if ( ! is_dir( $dir ) ) {
-
-					mkdir( $dir, 0777, true );
-
-				}
-
-			}
-
-		}
-
-		/**
 		 * @param Property[] $properties
 		 * @param array $args {
-		 *      @type int|null $tab_count
+		 *      @type integer|null $tab_count
 		 *      @type string $trim
 		 * }
 		 *
 		 * @return string
 		 */
 		function get_php_initializers( $properties, $args = array() ) {
+
+			static $depth = 0;
+
+			if ( 0 === $depth++ ) {
+				/*
+				 * Many properties can accept defaults.
+				 * So remove them from the array so we
+				 * don't have to generate them redundantly.
+				 */
+				$properties = $this->filter_redundant( $properties );
+			}
+
 
 			$args = Util::parse_args( $args, array(
 				'tab_count' => 3,
@@ -651,7 +562,20 @@ namespace JSON_Loader {
 			 */
 			foreach ( $properties as $property_name => $property ) {
 
-				$value = is_object( $property ) ? $property->value : $property;
+				if ( $property instanceof Property ) {
+
+					$value = $this->get_object_value( $property_name );
+
+					$value = $property->cast( $value );
+
+				} else {
+					/*
+					 * For when called recursively on numerically-indexed
+					 * or other non-property arrays
+					 */
+					$value = $property;
+				}
+
 
 				if ( is_null( $value ) ) {
 
@@ -690,7 +614,7 @@ namespace JSON_Loader {
 
 					case 'array':
 
-						$values = $this->get_php_initializers( $value, array(
+						$values = $this->get_php_initializers( (array) $value, array(
 							'tab_count' => 1 + $args[ 'tab_count' ],
 							'trim' => 'notrim',
 						));
@@ -738,10 +662,42 @@ namespace JSON_Loader {
 
 			$output = implode( "\n", $output );
 
+			$depth--;
+
 			return 'trim' === $args[ 'trim' ] ? ltrim( $output ) : $output;
 
 		}
 
+		/**
+		 * @param string $method_name
+		 *
+		 * @return boolean
+		 */
+		function has_method( $method_name ) {
+
+			return method_exists( $this, $method_name ) && is_callable( array( $this, $method_name ) );
+
+		}
+		/**
+		 * @param string $method_name
+		 *
+		 * @return boolean
+		 */
+		function call_method( $method_name ) {
+
+			if ( 0 === count( $args = array_slice( func_get_args(), 1 ) ) ) {
+
+				$value = call_user_func( array( $this, $method_name ) );
+
+			} else {
+
+				$value = call_user_func_array( array( $this, $method_name ), $args );
+
+			}
+
+			return $value;
+
+		}
 
 		/**
 		 * @param string $property_name
@@ -754,24 +710,21 @@ namespace JSON_Loader {
 
 			Util::push_class( $this );
 
-			if ( Util::can_call( $callable = array( $this, $property_name ) ) ) {
+			if ( $this->has_method( $property_name ) ) {
 
-				/**
-				 * Try calling its own methods first
-				 */
-				$value = call_user_func( $callable );
+				$value = $this->call_method( $property_name );
 
-			} else if ( Util::has_property( $this->object, $property_name ) ) {
+			} else if ( $this->has_object_property( $property_name ) ) {
 
-				$value = $this->object->$property_name;
+				$value = $this->get_object_value( $property_name );
 
-			} else if ( isset( $this->parent->object ) && Util::has_property( $this->parent->object, $property_name ) ) {
+			} else if ( $this->parent->has_object_property( $property_name ) ) {
 
-				$value = $this->parent->$property_name;
+				$value = $this->parent->get_object_value( $property_name );
 
 			} else {
 
-				$class_name = implode( ', ', Util::class_stack() );
+				$class_name = implode( ', ', array_unique( Util::class_stack() ) );
 
 				if ( empty( $class_name ) ) {
 
@@ -789,7 +742,46 @@ namespace JSON_Loader {
 
 		}
 
+		/**
+		 * @param string $property_name
+		 *
+		 * @return boolean
+		 */
 
+		function has_object_property( $property_name ) {
+
+			return $this->object->has_property( $property_name ) || $this->object->has_method( $property_name );
+
+		}
+
+		/**
+		 * @param string $property_name
+		 *
+		 * @return mixed
+		 */
+		function get_object_value( $property_name ) {
+
+			$object = $this->object;
+
+			$value = $object->has_property( $property_name )
+				? $object->get_value( $property_name )
+				: null;
+
+			if ( $object->has_method( $property_name ) ) {
+
+				$value = $object->call_method( $property_name, $value );
+
+			}
+
+			if ( $object->get_elements_instantiated( $property_name ) ) {
+
+			 	$object->set_cached( $property_name, $value );
+			}
+
+
+			return $value;
+
+		}
 
 		/**
 		 * @return array
@@ -800,17 +792,156 @@ namespace JSON_Loader {
 
 		}
 
+		/**
+		 * @return Property[]
+		 */
+		function initializer_properties() {
+
+			return $this->get_initializer_properties( $this->object_properties() );
+
+		}
+
+		/**
+		 * @return string
+		 */
+		function this_dir() {
+
+			return $this->object->get_filepath();
+
+		}
 
 		/**
 		 * @return array
 		 */
-		function initializer_properties() {
+		/**
+		 * @param Property[]|boolean|false $properties
+		 *
+		 * @return Property[]
+		 */
+		function get_initializer_properties( $properties = false ) {
 
-			$properties = Util::get_initializer_properties( $this->object );
+			$initializers = array();
 
-			$properties = Util::filter_default_values( $properties, 'default' );
+			foreach ( $properties as $property_name => $property ) {
 
-			return Util::explode_args( $this->object, $properties );
+				if ( $property->initializer ) {
+
+					$initializers[ $property_name ] = $property;
+
+				}
+
+			}
+
+			return $initializers;
+
+		}
+
+		/**
+		 * @return Property[]
+		 */
+		function object_properties() {
+
+			return $this->object->get_properties();
+
+		}
+
+		/**
+		 * @param string $property_name
+		 * @param mixed $value
+		 */
+		function set_object_value( $property_name, $value ) {
+
+			$this->object->set_value( $property_name, $value );
+
+		}
+
+
+		/**
+		 * Filters values out that match the core default for the underlying platform.
+		 *
+		 * @return array
+		 *
+		 * @example
+		 *
+		 *      No value provided @default=true  @missing=false => include in returned $args
+		 *      No value provided @default=false @missing=false => DO NOT include in returned $args
+		 *      true provided     @default=true  @missing=false => include in returned $args
+		 *      true provided     @default=true  @missing=true  => DO NOT include in returned $args
+		 *      true provided     @default=false @missing=true  => DO NOT include in returned $args
+		 *
+		 * @param Property[]|boolean $properties
+		 *
+		 * @return boolean|JSON_Loader\Property[]
+		 */
+		function filter_redundant( $properties = false ) {
+
+		    if ( ! $properties ) {
+
+			    $properties = $this->object_properties();
+
+		    }
+
+			foreach ( $properties as $property_name => $property ) {
+
+				$property_value = $this->get_object_value( $property_name );
+
+				$missing_value = ! is_null( $property->missing )
+					? $property->cast( $property->missing )
+					: null;
+
+				if ( is_null( $property_value ) && is_null( $missing_value ) ) {
+
+					unset( $properties[ $property_name ] );
+					continue;
+
+				} else if ( ! preg_match( '#^(!?)\s*\$(\w+)$#', $missing_value, $matches ) ) {
+
+					$default_value = $missing_value;
+
+				} else {
+
+					if ( ! $this->has_object_property( $default_property_name = $matches[2] ) ) {
+
+						$err_msg = 'Property %s not declared but referenced in a @%s for %s yet. Must declare before referencing.';
+
+						Util::log_error( sprintf( $err_msg,
+							$default_property_name,
+							'missing',
+							$property_name
+						));
+
+					} else {
+
+						$default_value = '!' === $matches[1]
+							? ! $this->get_object_value( $default_property_name )
+							: $this->get_object_value( $default_property_name );
+
+					}
+
+				}
+
+
+				if ( is_array( $property_value ) && is_string( $missing_value ) && $property->explode ) {
+					/*
+					 * If the value is an already exploded array but the missing value is not exploded
+					 * the implode the value to compare with the missing value.
+					 */
+					$property_value = implode( $property->explode, $property_value );
+
+				}
+
+				if ( $default_value === $property_value ) {
+					/*
+					 * If the default value and the property value are the same
+					 * the we don't need to generate an initializer for them.
+					 */
+					unset( $properties[ $property_name ] );
+
+				}
+
+			}
+
+			return $properties;
 
 		}
 

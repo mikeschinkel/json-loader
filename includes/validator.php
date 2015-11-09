@@ -4,30 +4,46 @@ namespace JSON_Loader {
 
 	class Validator extends Base {
 
-		static $errors = array();
+		var $errors = array();
+
+		/**
+		 * @var self
+		 */
+	    static $instance;
+
+		/**
+		 * @return self
+		 */
+	    static function instance() {
+
+			return self::$instance;
+
+	    }
 
 		/**
 		 * @param mixed $value
-		 * @param int $level
+		 * @param array $args {
+		 *      @type integer $level
+		 * }
 		 *
-		 * @return bool
+		 * @return boolean
 		 */
-		static function validate( $value, $level = 0 ) {
+		function validate( $value, $args = array() ) {
 
-			if ( 0 === $level ) {
+			$args = Util::parse_args( $args, array(
+				'level' => 0,
+			));
 
-				self::$errors = array();
+			if ( 0 === $args['level'] ) {
+
+				$this->errors = array();
 
 			}
 
 
 			if ( $value instanceof Object ) {
 
-				$valid = static::validate_object( $value, 1 + $level );
-
-			} else if ( $value instanceof Property ) {
-
-				$valid = static::validate_property( $value, 1 + $level );
+				$valid = $this->validate_object( $value, 1 + $args['level'] );
 
 			} else if ( is_array( $value ) ) {
 
@@ -35,7 +51,7 @@ namespace JSON_Loader {
 
 					$valid = true;
 
-					if ( ! static::validate( $element_value, 1 + $level ) ) {
+					if ( ! $this->validate( $element_value, 1 + $args['level'] ) ) {
 
 						$valid = false;
 
@@ -45,9 +61,9 @@ namespace JSON_Loader {
 
 			}
 
-			if ( 0 < count( self::$errors ) && 0 === $level ) {
+			if ( 0 < count( $this->errors ) && 0 === $args['level'] ) {
 
-			    Util::log_error( "Validation Failed:\n\n\t- " . implode( "\n\t- ", self::$errors ) );
+			    Util::log_error( "Validation Failed:\n\n\t- " . implode( "\n\t- ", $this->errors ) );
 
 			}
 
@@ -57,77 +73,18 @@ namespace JSON_Loader {
 
 		/**
 		 * @param Object $object
-		 * @param int $level
+		 * @param integer $level
 		 *
-		 * @return bool
+		 * @return boolean
 		 */
-		static function validate_object( $object, $level = 0 ) {
-
-			$state = Util::get_state( $object );
+		function validate_object( $object, $level = 0 ) {
 
 			$valid = true;
 
-			foreach ( (array)$state->schema as $property_name => $property ) {
+			foreach ( $object->get_properties() as $property_name => $property ) {
 
-				$property_value = $state->get_value( $property_name );
+				if ( ! $object->do_validate_value( $property_name, $level ) ) {
 
-				if ( ! is_array( $property_value ) ) {
-
-					if ( ! static::validate_property( $property, $level ) ) {
-
-						$valid = false;
-
-					}
-
-				} else {
-
-					foreach ( $property_value as $index => $value ) {
-
-						if ( ! static::validate( $value, $level ) ) {
-
-							$valid = false;
-
-						}
-
-					}
-
-				}
-
-			}
-
-			return $valid;
-
-		}
-
-		/**
-		 * @param Property $property
-		 * @param int $level
-		 * @return bool
-		 */
-		static function validate_property( $property, $level = 0 ) {
-
-			$valid = true;
-
-			$property_value = $property->value;
-
-			if ( $property->value instanceof Object ) {
-
-				$valid = static::validate_object( $property_value, $level );
-
-			} else if ( $property->required && empty( $property_value ) ) {
-
-				$unique_id = Util::unique_id( $property->parent_object );
-
-				$error_msg = sprintf( "Property \"{$property->property_name}\" is required for the \"%s\" %s", $unique_id, get_class( $property->parent_object ) );
-
-				if ( is_array( $property->value ) && 0 === count( $property_value ) ) {
-
-					self::$errors[] = "{$error_msg} to have array elements.";
-					$valid = false;
-
-				} else if ( is_null( $property_value ) ) {
-
-					self::$errors[] = "{$error_msg}.";
 					$valid = false;
 
 				}
@@ -139,5 +96,7 @@ namespace JSON_Loader {
 		}
 
 	}
+
+	Validator::$instance = new Validator();
 
 }

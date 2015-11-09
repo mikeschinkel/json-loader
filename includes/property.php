@@ -25,7 +25,7 @@ namespace JSON_Loader {
 		var $description;
 
 		/**
-		 * @var bool|string
+		 * @var boolean|string
 		 */
 		var $namespace = false;
 
@@ -35,9 +35,59 @@ namespace JSON_Loader {
 		var $required = false;
 
 		/**
-		 * @var bool
+		 * @var string|boolean
 		 */
 		var $default = null;
+
+		/**
+		 * @var string|boolean
+		 */
+		var $missing = null;
+
+		/**
+		 * If @loadable then the value can either be a JSON object to map to a PHP object, or the path where a /wplib.json can be found.
+		 * @var string|boolean
+		 */
+		var $loadable = null;
+
+		/**
+		 * If @dashified then value will be transformed with Util::underscorify()
+		 *
+		 * Means to replace spaces and dashes with underscores.
+		 *
+		 * @var bool
+		 */
+		var $underscorified = false;
+
+		/**
+		 * If @dashified then value will be transformed with Util::dashify()
+		 *
+		 * Means to replace spaces and underscores with dashes.
+		 *
+		 * @var bool
+		 */
+		var $dashified = false;
+
+		/**
+		 * If @lowercased then value will be transformed with strtolower()
+		 *
+		 * @var bool
+		 */
+		var $lowercased = false;
+
+		/**
+		 * If @uppercased then value will be transformed with strtoupper()
+		 *
+		 * @var bool
+		 */
+		var $uppercased = false;
+
+		/**
+		 * If @propercased then value will be transformed with ucfirst()
+		 *
+		 * @var bool
+		 */
+		var $propercased = false;
 
 		/**
 		 * @var bool
@@ -52,49 +102,63 @@ namespace JSON_Loader {
 		var $explode = false;
 
 		/**
-		 * @var Type[]
+		 * @var Data_Type[]
 		 */
-		var $types;
+		var $data_types;
 
 		/**
-		 * @var Type
+		 * @var Data_Type
 		 */
 		var $default_type;
 
 		/**
-		 * @var Object
+		 * @param string $property_name
+		 * @param string|string[]|Data_Type|Data_Type[] $data_types
+		 * @param array $args
+		 *
+		 * @return static
 		 */
-		var $parent_object;
+		static function make_new( $property_name, $data_types, $args = array() ) {
 
+			// @todo Reuse properties that match the property to be created.
+
+			return new static( $property_name, $data_types, $args );
+
+		}
 		/**
 		 * @param string $property_name
-		 * @param string|string[]|Type|Type[] $types
-		 * @param string $namespace
-		 * @param array $args {
+		 * @param string|string[]|Data_Type|Data_Type[] $data_types
+		 * @param array $args
 		 */
-		function __construct( $property_name, $types, $namespace, $args = array() ) {
+		function __construct( $property_name, $data_types, $args = array() ) {
 
 			$args['property_name'] = $property_name;
 
-			$args['types'] = array();
+			$args['data_types'] = array();
 
-			$type_args = array_intersect_key( $args, get_class_vars( 'JSON_Loader\Type' ) );
+			$type_args = array_intersect_key( $args, get_class_vars( 'JSON_Loader\Data_Type' ) );
 
-			foreach ( explode( '|', $types ) as $type ) {
+			if ( ! is_array( $data_types ) ) {
 
-				if ( ! $type instanceof Type ) {
-
-					$type = new Type( $type, $namespace, $type_args );
-
-				}
-
-				$args['types'][ (string) $type ] = $type;
+				$data_types = explode( '|', $data_types );
 
 			}
 
-			$args['namespace'] = $namespace;
+			foreach ( $data_types as $index => $data_type ) {
 
-			$args['default_type'] = 0 < count( $args['types'] ) ? reset( $args['types'] ) : false;
+				$type_args['namespace'] = Util::parse_namespace( $data_type );
+
+				if ( 0 === $index ) {
+					$args['namespace'] = $type_args['namespace'];
+				}
+
+				$args['data_types'][ (string) $data_type ]
+					= Data_Type::make_new( $data_type, $type_args );
+
+			}
+
+
+			$args['default_type'] = 0 < count( $args['data_types'] ) ? reset( $args['data_types'] ) : null;
 
 			if ( ! empty( $args['explode'] ) ) {
 
@@ -109,92 +173,61 @@ namespace JSON_Loader {
 
 		}
 
+		function has_data_type( $data_type ) {
+
+			return isset( $this->data_types[ $data_type ] );
+
+		}
 
 		/**
 		 * @param $value
 		 *
-		 * @return Type
+		 * @return Data_Type
 		 */
-		function get_current_type( $value ) {
+		function get_data_type( $value ) {
 
 			if ( is_null( $value ) ) {
 
-				$current_type = $this->default_type;
+				$result = $this->default_type;
 
 			} else {
 
-				$value_type = new Type( gettype( $value ), $this->namespace );
+				$value_type = new Data_Type( gettype( $value ), array(
+					'namespace' => $this->namespace,
+				));
 
 				$is_array = 'array' === $value_type->base_type;
 
-				foreach ( $this->types as $type ) {
+				foreach ( $this->data_types as $data_type ) {
 
-					if ( ! $is_array && $type->is_equal( $value_type ) ) {
+					if ( ! $is_array && $data_type->is_equal( $value_type ) ) {
 
-						$current_type = $type;
+						$result = $data_type;
 						break;
 
-					} else if ( $is_array && $type->is_equal( $value_type, $value ) ) {
+					} else if ( $is_array && $data_type->is_equal( $value_type, $value ) ) {
 
-						$current_type = $type;
+						$result = $data_type;
 						break;
+
+					} else {
+
+						$result = null;
 
 					}
 
 				}
 
-				if ( ! isset( $current_type ) ) {
-
-					$message = sprintf(
-						"Failed to load %s using %s value: %s.\n" .
-						"\nCorrrect the PHPDoc for %s or change the values in your JSON file.",
-						(string) $type,
-						(string) $value_type,
-						$this->_as_string( $value ),
-						$this->identifier()
-					);
-
-					Util::log_error( $message );
-
-				}
-
 			}
 
-			return $current_type;
-
-		}
-
-		/**
-		 * Provide an identifer for this property to be output in error messages.
-		 *
-		 * @return string
-		 */
-		function identifier() {
-
-			return get_class( $this->parent_object ) . "->{$this->property_name}";
-
-		}
-
-		/**
-		 * Convert any value type to string for outputting in an error message
-		 *
-		 * @param mixed $value
-		 *
-		 * @return string
-		 */
-		private function _as_string( $value ) {
-
-			ob_start();
-			print_r( $value );
-
-			return ob_get_clean();
+			return $result;
 
 		}
 
 		/**
 		 * @param string $extra_arg
 		 *
-		 * @return bool
+		 * @return boolean
 		 */
 		function is_true( $extra_arg ) {
 
@@ -205,7 +238,7 @@ namespace JSON_Loader {
 		/**
 		 * @param string $extra_arg
 		 *
-		 * @return bool
+		 * @return boolean
 		 */
 		function is_false( $extra_arg ) {
 
@@ -214,154 +247,73 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param string $extra_arg
+		 * @param string $element_name
+		 *
+		 * @return boolean
+		 */
+		function has_extra( $element_name ) {
+
+			return isset( $this->extra_args[ $element_name ] );
+
+		}
+
+		/**
+		 * @param string $element_name
 		 *
 		 * @return mixed
 		 */
-		function get_extra( $extra_arg ) {
+		function get_extra( $element_name ) {
 
-			$extra = array_key_exists( $extra_arg, $this->extra_args ) ? $this->extra_args[ $extra_arg ] : null;
+			$extra = isset( $this->extra_args[ $element_name ] )
+				? $this->extra_args[ $element_name ]
+				: null;
 
-			return is_string( $extra ) ? trim( $extra ) : $extra;
-
+			return $this->cast( $extra );
 		}
 
 		/**
-		 * Invokes the logic in the Object to default, sanitize, standardize, etc.
+		 * Convert strings 'true', 'false' and 'null' to true, false and null.
+		 *
+		 * Only if property declared to support boolean or null, respectively.
+		 *
+		 * @param string $value
 		 *
 		 * @return mixed
+		 *
+		 * @todo Move this to loading of the data?
 		 */
-		function value() {
+		function cast( $value ) {
 
-			$object = $this->parent_object;
+			$regex = '#^(true|false|null)$#';
 
-			$property_name = $this->property_name;
+			if ( is_string( $value ) && preg_match( $regex, strtolower( $value ), $match ) ) {
 
-			if ( Util::has_property( $object, $property_name ) ) {
+				switch ( $match[1] ) {
 
-				$value = Util::get_state( $object )->get_value( $property_name );
+					case 'true':
+					case 'false':
 
-			} else if ( Util::has_parent_property( $object, $property_name ) ) {
+						if ( $this->has_data_type( 'boolean' ) ) {
 
-				$value = $object->parent_object->$property_name;
+							$value = 'true' === $value;
 
-			} else {
+						}
+						break;
 
-				$value = null;
+					case 'null':
 
-				Util::log_error( sprintf(
-					"Class %s does not have property in State->schema or ->values when attempting to get Property->value for property %s",
-					get_class( $this->parent_object ),
-					$property_name
-				) );
+						if ( $this->has_data_type( 'null' ) ) {
 
-			}
+							$value = null;
 
-			return $value;
-
-		}
-
-		/**
-		 * Return the 'State' object of this Property's object_parent Object.
-		 *
-		 * @return State
-		 */
-		function parent_state() {
-
-			/**
-			 * @var Object $object
-			 */
-			$object = $this->parent_object;
-
-			return Util::get_state( $object );
-
-		}
-
-		/**
-		 * Return the 'State' object of this Property's object_parent Object.
-		 *
-		 * @param State $state
-		 */
-		function set_parent_state( $state ) {
-
-			/**
-			 * @var Object $object
-			 */
-			$object = $this->parent_object;
-
-			Util::set_state( $object, $state );
-
-		}
-
-		/**
-		 * Special case to get 'Value'
-		 *
-		 * Get the $property_name element of the 'values' array from the State of this
-		 * Property's object_parent Object if it exists or property is not 'value', then fail.
-		 *
-		 * @param string $property_name
-		 * @return mixed
-		 */
-		function __get( $property_name ) {
-
-			if ( 'value' === $property_name ) {
-
-				$value = $this->value();
-
-			} else {
-
-				$value = null;
-
-				Util::log_error( sprintf(
-					"Class %s does not have property in State->schema or ->values when attempting to get Property->value for property %s",
-					get_class( $this->parent_object ),
-					$property_name
-				));
-
-			}
-
-			return $value;
-
-		}
-
-		/**
-		 * Special case to set 'Value'
-		 *
-		 * Set the $property_name element of the 'values' array in the State of this
-		 * Property's object_parent Object if it exists, otherwise fail.
-		 * If not 'value' just set the property.
-		 *
-		 * @param string $property_name
-		 * @param $value
-		 */
-		function __set( $property_name, $value ) {
-
-			if ( 'value' === $property_name ) {
-
-				$state = $this->parent_state();
-
-				if ( $state->has_value( $this->property_name ) ) {
-
-					$state->set_value( $this->property_name, $value );
-
-				} else {
-
-					Util::log_error( sprintf(
-						"Class %s does not have property in State->schema or ->values when attempting to set Property->value for property %s",
-						get_class( $this->parent_object ),
-						$property_name
-					));
+						}
+						break;
 
 				}
 
-				$this->set_parent_state( $state );
-
 			}
 
-			if ( true ) {
-
-				$this->$property_name = $value;
-			}
+			return $value;
 
 		}
 

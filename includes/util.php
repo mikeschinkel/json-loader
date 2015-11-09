@@ -20,18 +20,7 @@ namespace JSON_Loader {
 		/**
 		 * @var array
 		 */
-		static $object_state = array();
-
-		/**
-		 * @var Object
-		 */
-		static $root;
-
-		/**
-		 * @var array
-		 */
-		private static $_schemas = array();
-
+		static $object_schema = array();
 
 		/**
 		 * @param array $args
@@ -48,34 +37,6 @@ namespace JSON_Loader {
 			}
 
 			return array_merge( $defaults, $args );
-
-		}
-
-		/**
-		 * @param Object $root
-		 * @return bool
-		 */
-		static function has_root() {
-
-			return isset( self::$root );
-
-		}
-
-		/**
-		 * @return Object
-		 */
-		static function root() {
-
-			return self::$root;
-
-		}
-
-		/**
-		 * @param Object $root
-		 */
-		static function set_root( $root ) {
-
-			self::$root = $root;
 
 		}
 
@@ -132,6 +93,8 @@ namespace JSON_Loader {
 		}
 
 		/**
+		 * Return the class namespace for an object or a class that can be loaded.
+		 *
 		 * @param object|string $object
 		 *
 		 * @return string
@@ -140,36 +103,48 @@ namespace JSON_Loader {
 
 			$class_name = is_object( $object ) ? get_class( $object ) : $object;
 
-			$reflector = new \ReflectionClass( $class_name );
+			try {
+				$reflector = new \ReflectionClass( $class_name );
+				$namespace = $reflector->getNamespaceName();
+			} catch (\Exception $e ) {
+				$namespace = null;
+			}
 
-			return $reflector->getNamespaceName();
+			return $namespace;
 
 		}
 
 		/**
+		 * Return the local class for an object or a class that can be loaded.
+		 *
 		 * @param object|string $object
 		 *
 		 * @return string
 		 */
-		static function get_baseclass( $object ) {
+		static function get_local_class( $object ) {
 
-			$class_name = is_object( $object ) ? get_class( $object ) : $object;
+			$class_name = is_object( $object )
+				? get_class( $object )
+				: $object;
 
-			if ( false !== strpos( $class_name, '\\' ) ) {
-
+			try {
 				$reflector = new \ReflectionClass( $class_name );
-
-				$class_name = $reflector->inNamespace() ? $reflector->getShortName() : $class_name;
-
+				if ( $reflector->inNamespace() ) {
+					$base_class = $reflector->getShortName();
+				} else {
+					$base_class = $class_name;
+				}
+			} catch (\Exception $e ) {
+				$base_class = $class_name;
 			}
 
-			return $class_name;
+			return $base_class;
 
 		}
 
 		/**
 		 * @param string $class_name
-		 * @param bool|string $namespace
+		 * @param boolean|string $namespace
 		 *
 		 * @return string
 		 */
@@ -182,9 +157,9 @@ namespace JSON_Loader {
 
 			}
 
-			$class_name = self::get_baseclass( $class_name );
+			$local_class = self::get_local_class( $class_name );
 
-			$class_name = "\\{$namespace}\\{$class_name}";
+			$class_name = "\\{$namespace}\\{$local_class}";
 
 			if ( ! class_exists( $class_name ) ) {
 
@@ -228,12 +203,19 @@ namespace JSON_Loader {
 		 * Replace dashes and spaces in input string with underscores.
 		 *
 		 * @param string $string_with_dashes
+		 * @param boolean|null $lowercase
 		 *
 		 * @return string
 		 */
-		static function underscorify( $string_with_dashes ) {
+		static function underscorify( $string_with_dashes, $lowercase = true ) {
 
-			return str_replace( array( '-', ' ' ), '_', $string_with_dashes );
+			$string = str_replace( array( '-', ' ' ), '_', $string_with_dashes );
+
+			if ( $lowercase ) {
+				$string = strtolower( $string );
+			}
+
+			return $string;
 
 		}
 
@@ -241,78 +223,16 @@ namespace JSON_Loader {
 		 * Replace underscores and spaces in input string with dashes.
 		 *
 		 * @param string $string_with_underscores
+		 * @param boolean|null $lowercase
 		 *
 		 * @return string
 		 */
-		static function dashify( $string_with_underscores ) {
+		static function dashify( $string_with_underscores, $lowercase = true ) {
 
-			return str_replace( array( '_', ' ' ), '-', $string_with_underscores );
+			$string = str_replace( array( '_', ' ' ), '-', $string_with_underscores );
+			$string = strtolower( $string );
 
-		}
-
-		/**
-		 * @param array $callable
-		 *
-		 * @return bool
-		 */
-		static function can_call( $callable ) {
-
-			if ( is_string( $callable ) ) {
-
-				$can_call = function_exists( $callable ) && is_callable( $callable );
-
-			} else if ( is_array( $callable ) ) {
-
-				list( $object, $method ) = $callable;
-
-				do {
-
-					$can_call = true;
-
-					if ( method_exists( $object, $method ) && is_callable( $callable ) ) {
-
-						break;
-
-					}
-
-					if ( property_exists( $object, 'object' ) && self::can_call( $callable = array( $object->object, $method ) ) ) {
-
-						break;
-
-					}
-
-					$can_call = false;
-
-				} while ( false );
-
-			}
-
-			return $can_call;
-		}
-
-		/**
-		 * @param Object $object
-		 * @param State $state
-		 */
-		static function set_state( $object, $state ) {
-
-			self::$object_state[ spl_object_hash( $object ) ] = $state;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string $property_name
-		 *
-		 * @return State $state
-		 */
-		static function get_state_value( $object, $property_name ) {
-
-			$properties = self::get_state_values( $object );
-
-			return isset( $properties[ $property_name ] )
-				? $properties[ $property_name ]
-				: null;
+			return $string;
 
 		}
 
@@ -389,97 +309,17 @@ namespace JSON_Loader {
 				? array_map( 'trim', explode( ',', $value ) )
 				: $value;
 
-//			do {
-//
-//				if ( is_null( $value ) ) {
-//					$value = array();
-//					break;
-//				}
-//
-//				if ( is_string( $value ) ) {
-//					$value = array_map( 'trim', explode( ',', $value ) );
-//					break;
-//				}
-//
-//				if ( ! is_array( $value ) ) {
-//					$value = array( $value );
-//					break;
-//				}
-//
-//			} while ( false );
-//
-//			return $value;
-
-		}
-
-		/**
-		 * @param Object $object
-		 *
-		 * @return State $state
-		 */
-		static function get_state( $object ) {
-
-			$hash = spl_object_hash( $object );
-
-			return isset( self::$object_state[ $hash ] )
-				? self::$object_state[ $hash ]
-				: null;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string $property_name
-		 *
-		 * @return bool
-		 */
-		static function has_parent_property( $object, $property_name ) {
-
-			/**
-			 * @var State $state
-			 */
-			$state = Util::get_state( $object );
-
-			return $state->object_parent && self::has_property( $state->object_parent, $property_name );
-
-		}
-
-		/**
-		 * @param Object|array $object
-		 * @param string $property_name
-		 *
-		 * @return bool
-		 */
-		static function has_property( $object, $property_name = null ) {
-
-			if ( is_array( $object ) && 2 <= count( $object ) ) {
-
-				list( $object, $property_name ) = $object;
-
-			}
-
-			if ( ! is_a( $state = Util::get_state( $object ), '\JSON_Loader\State' ) ) {
-
-				$has_property = property_exists( $object, $property_name );
-
-			} else {
-
-				$has_property = preg_match( '#^(__parent__|__meta__)$#', $property_name ) ||
-				                property_exists( $state->schema, $property_name ) ||
-				                array_key_exists( $property_name, $state->extra_args ) ||
-				                property_exists( $object, $property_name );
-			}
-
-			return $has_property;
 		}
 
 		/**
 		 * @param string $constant_name
-		 * @param bool|string $class_name
+		 * @param boolean|string $class_name
+		 * @param boolean $validate
+		 *
 		 *
 		 * @return mixed|null
 		 */
-		static function get_constant( $constant_name, $class_name = false ) {
+		static function get_constant( $constant_name, $class_name = false, $validate = false ) {
 
 			if ( ! $class_name ) {
 
@@ -493,9 +333,19 @@ namespace JSON_Loader {
 
 			}
 
-			return defined( $constant_ref = "{$class_name}::{$constant_name}" )
+			$value = defined( $constant_ref = "{$class_name}::{$constant_name}" )
 				? constant( $constant_ref )
 				: null;
+
+			if ( ! $value && $validate ) {
+
+				$message = "No %s constant set in class %s.";
+
+				Util::log_error( sprintf( $message, $constant_name, $class_name ) );
+
+			}
+
+			return $value;
 
 		}
 
@@ -504,147 +354,7 @@ namespace JSON_Loader {
 		 */
 		static function log_error( $message ) {
 
-			Loader::$logger->error( $message );
-
-		}
-
-		/**
-		 * Filters values out that match the core default for the underlying platform.
-		 *
-		 * @param Property[] $args         List of property arguments to filter
-		 * @param string $default_arg_name Attribute specific to the app_object, e.g. "@wp_default" for WPLib CLI.
-		 *
-		 * @return array
-		 *
-		 * @example
-		 *
-		 *      No value provided @default=true @wp_default=false => include in returned $args
-		 *      No value provided @default=false @wp_default=false => DO NOT include in returned $args
-		 *      true provided @default=true @wp_default=false => include in returned $args
-		 *      true provided @default=true @wp_default=true => DO NOT include in returned $args
-		 *      true provided @default=false @wp_default=true => DO NOT include in returned $args
-		 *
-		 */
-		static function filter_default_values( $args, $default_arg_name ) {
-
-			foreach ( $args as $property_name => $property ) {
-
-				if ( ! $property instanceof Property ) {
-
-					continue;
-
-				}
-
-				if ( is_null( $property_value = $property->value() ) ) {
-
-					unset( $args[ $property_name ] );
-					continue;
-
-				}
-
-				$default_arg_value = $property->get_extra( $default_arg_name );
-
-				if ( ! preg_match( '#^(!?)\s*\$(\w+)$#', $default_arg_value, $matches ) ) {
-
-					$default_property_value = $default_arg_value;
-
-				} else {
-
-					if ( ! isset( $args[ $default_property_name = $matches[2] ] ) ) {
-
-						Util::log_error( "Property {$default_property_name} not declared but referenced in a @{$default_arg_name} for {$property_name} yet. Must be declared before referenced." );
-
-					} else {
-
-						$not = '!' === $matches[1];
-
-						$default_property = $args[ $default_property_name ];
-
-						$default_property_value = $not ? ! $default_property->value() : $default_property->value();
-
-					}
-
-				}
-
-				if ( $default_property_value === $property_value ) {
-
-					unset( $args[ $property_name ] );
-
-				}
-
-			}
-
-			return $args;
-
-		}
-
-		/**
-		 * @param Object $object
-		 *
-		 * @return array
-		 */
-		static function get_initializer_properties( $object ) {
-
-			$initializers = array();
-
-			$meta = $object->__meta__;
-
-			foreach ( $meta as $property_name => $property ) {
-
-				if ( $property->initializer ) {
-
-					$initializers[ $property_name ] = $property;
-
-				}
-
-			}
-
-			return $initializers;
-
-		}
-
-		/**
-		 * Converts anything that has an @explode property from string to array.
-		 *
-		 * @param Object $object
-		 * @param Property[] $args
-		 *
-		 * @return array
-		 *
-		 */
-		static function explode_args( $object, $args ) {
-
-			foreach ( $args as $property_name => $property ) {
-
-				if ( ! $property instanceof Property ) {
-
-					continue;
-
-				}
-
-				if ( $property->explode ) {
-
-					if ( is_string( $value = $property->value() ) ) {
-
-						$state = Util::get_state( $object );
-
-						$state->clear_cached_property( $property_name );
-
-						$value = explode( $property->explode, $value );
-
-						$property->value = $value;
-
-						$state->set_value( $property_name, $value );
-
-						Util::set_state( $object, $state );
-
-					}
-
-				}
-
-			}
-
-			return $args;
+			Loader::instance()->logger->error( $message );
 
 		}
 
@@ -687,219 +397,143 @@ namespace JSON_Loader {
 
 		}
 
-
 		/**
-		 * @param Object $object
-		 * @return string
+		 * @param string|array $dir
 		 */
-		static function unique_id( $object ) {
+		static function mkdir( $dir = array() ) {
 
-			if ( ! ( $unique_id_field = Util::get_constant( 'ID_FIELD', $object ) ) ) {
+			$dirs = ! is_array( $dir ) ? array( $dir ) : $dir;
 
-				$unique_id_field = Util::get_constant( 'SLUG', $object );
+			foreach ( $dirs as $dir ) {
+
+				if ( ! is_dir( $dir ) ) {
+
+					mkdir( $dir, 0777, true );
+
+				}
 
 			}
 
-			$state = Util::get_state( $object );
+		}
 
-			if ( ! $state->has_value( $unique_id_field ) ) {
+		/**
+		 * Take a type string such as 'string', '\\Foo', 'Foo\\Bar' or '\\Foo\\Bar', and returning the namespace.
+		 *
+		 * @example Namespaces returned:
+		 *
+		 *      'string'        => null
+		 *      '\\Foo'         => null
+		 *      'Foo\\Bar'      => Foo
+		 *      '\\Foo\\Bar'    => Foo
+		 *
+		 * @note the backslash escaping of '\\Foo\\Bar' etc.
+		 *
+		 * @param string $type
+		 *
+		 * @return string|null
+		 */
+		static function parse_namespace( $type ) {
 
-				$message = "No ID_FIELD constant set in class %s. ID_FIELD identifies the field name contain a unique identifying value.";
+			list( $namespace ) = false !== strpos( $type, '\\' )
+				? explode( '\\', ltrim( $type, '\\' ) )
+				: array( null );
 
-				Util::log_error( sprintf( $message, get_class( $object ) ) );
-
-			}
-
-			return Util::dashify( $object->$unique_id_field );
+			return $namespace;
 
 		}
 
 		/**
-		 * @param Object $object
+		 * Take a type string such as 'string', '\\Foo', 'Foo\\Bar' or '\\Foo\\Bar', and returning the local class name.
 		 *
-		 * @return bool
-		 */
-		static function has_object_schema( $object ) {
-
-			return self::has_class_schema( $object ) &&
-				array_key_exists( spl_object_hash( $object ), self::$_schemas[ get_class( $object ) ] );
-
-		}
-
-		/**
-		 * @param Object|string $object
+		 * @example Namespaces returned:
 		 *
-		 * @return bool
-		 */
-		static function has_class_schema( $object ) {
-
-			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
-
-			return array_key_exists( $class_name, self::$_schemas );
-
-		}
-
-
-		/**
-		 * @param Object|string $object
-		 * @param Object $parent
+		 *      'string'        => null
+		 *      'object'        => object
+		 *      'Foo'           => Foo
+		 *      '\\Foo'         => Foo
+		 *      'Foo\\Bar'      => Bar
+		 *      '\\Foo\\Bar'    => Bar
 		 *
-		 * @return State
+		 * @note the backslash escaping of '\\Foo\\Bar' etc.
+		 *
+		 * @param string $type
+		 *
+		 * @return string|null
 		 */
-		static function clone_object_schema( $object, $parent ) {
+		static function parse_local_class( $type ) {
 
-			/**
-			 * @var State $schema
-			 */
-			if ( self::has_class_schema( $object ) && count( self::$_schemas[ $class_name = get_class( $object ) ] ) ) {
+			if ( self::is_builtin_type( $type ) ) {
+				/*
+				 * $type === 'string', 'boolean', 'integer', etc.
+				 */
+				$local_class = null;
 
-				$schema = clone( reset( self::$_schemas[ $class_name ] ) );
-				$schema->object_parent = $parent;
+			} else if ( false !== strpos( $type, '\\' ) ) {
+				/*
+				 * $type === '\\Foo\\Bar' or 'Foo\\Bar',
+				 */
+				$local_class = substr( $type, strrpos( $type, '\\' ) + 1 );
 
 			} else {
 
-				$schema = null;
+				/*
+				 * $type === 'object' or 'Foo'
+				 */
+				$local_class = $type;
 
 			}
 
-			return $schema;
+			return $local_class;
 
 		}
 
 		/**
-		 * @param Object|string $object
-		 * @param State $schema
+		 * Returns true if $type contains a string that can be returned by gettype().
+		 *
+		 * @note This does not mean that the type HAS been declared,
+		 * only that its NOT one of the type returned by gettype().
+		 *
+		 * @param string $type
+		 * @param array $omit_types
+		 *
+		 * @return int
 		 */
-		static function set_object_schema( $object, $schema ) {
+		static function is_builtin_type( $type, $omit_types = array() ) {
 
-			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
+			if ( ! is_array( $omit_types ) ) {
 
-			if ( ! self::has_class_schema( $object ) ) {
-				self::$_schemas[ $class_name ] = array();
+				$omit_types = explode( '|', $omit_types );
+
 			}
 
-			self::$_schemas[ $class_name ][ spl_object_hash( $object ) ] = $schema;
+			$builtin_types = implode( '|', array_diff(
+				explode( '|', 'boolean|integer|double|string|object|array|resource|NULL|unknown type' ),
+				$omit_types
+			));
+
+			return preg_match( "#^({$builtin_types})$#", $type );
 
 		}
 
 		/**
-		 * @param Object|string $object
-		 * @return State
-		 */
-		static function get_object_schema( $object ) {
-
-			$class_name = is_object ( $object ) ? get_class( $object ) : $object;
-
-			return self::has_class_schema( $object )
-				? self::$_schemas[ $class_name ][ spl_object_hash( $object ) ]
-				: null;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param int|Property $property
+		 * @param string $data_type
 		 * @param string $namespace
-		 * @param mixed $value
 		 *
-		 * @return mixed
+		 * @return array
 		 */
-		public static function instantiate_value( $object, $property, $namespace, $value ) {
+		static function explode_data_types( $data_type, $namespace ) {
 
-			$current_type = $property->get_current_type( $value );
+			$data_types = array_map( function ( $data_type ) use ( $namespace ) {
+				if ( false === strpos( $data_type, '\\' ) && ! Util::is_builtin_type( $data_type ) ) {
 
-			switch ( $base_type = $current_type->base_type ) {
+					$data_type = "\\{$namespace}\\{$data_type}";
 
-				case 'string':
-				case 'int':
-				case 'bool':
-				case 'boolean':
+				}
 
-					// Do nothing
-					break;
+				return $data_type;
+			}, explode( '|', $data_type ) );
 
-				case 'array':
-				case 'object':
-				default:
-
-					if ( is_null( $value ) ) {
-						/**
-						 * First parameter to class instantiation represents the properties
-						 * and values to instatiate the object with thus it can be an array
-						 * or an object, but it CANNOT be null. So default to array with no
-						 * properties and values if null.
-						 */
-						$value = array();
-					}
-					if ( $current_type->array_of ) {
-
-						foreach ( (array) $value as $index => $element_value ) {
-
-							$element_type = $current_type->element_type();
-
-							$parent_object = is_subclass_of( $element_value, '\JSON_Loader\Object' )
-								? $element_value
-								: $object;
-
-							$value[ $index ] = self::instantiate_value(
-								$parent_object,
-								new Property( $index, $element_type, $namespace, array(
-									'parent_object' => $parent_object,
-								) ),
-								$namespace,
-								$element_value
-							);
-
-						}
-						break;
-
-					} else if ( $current_type->class_name ) {
-
-						$class_name = $current_type->class_name;
-
-						$value = new $class_name( (array) $value, $object );
-						break;
-
-					}
-
-			}
-
-			return $value;
-
-		}
-
-		/**
-		 * @param Object $object
-		 * @param string $property_name
-		 *
-		 * @return State $state
-		 */
-		public static function has_state_value( $object, $property_name ) {
-
-			return property_exists( self::get_state( $object ), $property_name );
-
-		}
-
-		/**
-		 * @param Object $object
-		 *
-		 * @return Object[]|mixed[]
-		 */
-		public static function get_state_values( $object ) {
-
-			if ( ! $object instanceof Object ) {
-
-				$properties = array();
-
-			} else {
-
-				$state = self::get_state( $object );
-
-				$properties = $state->values();
-
-			}
-
-			return $properties;
+			return $data_types;
 
 		}
 

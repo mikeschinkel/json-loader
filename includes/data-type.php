@@ -12,67 +12,77 @@ namespace JSON_Loader {
 	 *
 	 * @package JSON_Loader
 	 */
-	class Type extends Base {
+	class Data_Type extends Base {
 
 		/**
-		 * @var string Type as PHPDocumented
+		 * @var string Data_Type as PHPDocumented
 		 */
 		var $doc_type = 'string';
 
 		/**
-		 * @var string Type Namespace for this type
+		 * @var string Namespace for this data type
 		 */
 		var $namespace;
 
 		/**
-		 * @var string Base type, i.e. string|bool|int|object|array
+		 * @var string Base type, i.e. string|boolean|integer|object|array
 		 */
 		var $base_type = 'string';
 
 		/**
-		 * @var bool|string  Array element base type if $base_type is 'array'
+		 * @var boolean|string  Array element base type if $base_type is 'array'
 		 */
 		var $array_of = null;
 
 		/**
-		 * @var bool|string Qualified class name if $base_type is 'object'
+		 * @var boolean|string Qualified class name if $base_type is 'object' and namespaced
 		 */
 		var $class_name = null;
 
 		/**
-		 * @var State
+		 * @var boolean|string Local class name if $base_type is 'object' and namespaced
 		 */
-		var $parent;
+		var $local_class = null;
 
 		/**
 		 * @param string $type
-		 * @param string $namespace
 		 * @param array $args
 		 *
+		 * @return static
 		 */
-		function __construct( $type, $namespace, $args = array() ) {
+		static function make_new( $type, $args = array() ) {
+
+			// @todo Reuse data types that match the data type to be created.
+
+			return new static( $type, $args );
+
+		}
+
+		/**
+		 * @param string $type
+		 * @param array $args
+		 */
+		function __construct( $type, $args = array() ) {
 
 			$args[ 'doc_type' ] = $type;
-			$args[ 'namespace' ] = $namespace;
 
-			if ( preg_match( '#^boolean(\[\])?$#', $type, $match ) ) {
+			if ( ! Util::is_builtin_type( $type ) ) {
 
-				$type = 'bool' . ( isset( $match[ 1 ] ) ? '[]' : '' );
-
-			}
-
-			if ( ! preg_match( '#^(string|bool|int|object|array)#', $type ) ) {
+				$args[ 'class_name' ] = $type;
+				$args[ 'local_class' ] = Util::parse_local_class( $type );
+				$args[ 'namespace' ] = isset( $args['namespace'] )
+					? $args['namespace']
+					: Util::parse_namespace( $type );
 
 				if ( preg_match( '#(.*?)\[\]$#', $type, $match ) ) {
 
 					$args[ 'base_type' ]  = 'array';
 					$args[ 'array_of' ]   = 'object';
-					$args[ 'class_name' ] = Util::get_qualified_class_name( $match[1], $namespace );
+					$args[ 'class_name' ] = $match[1];
 
 				} else {
 
 					$args[ 'base_type' ]  = 'object';
-					$args[ 'class_name' ] = Util::get_qualified_class_name( $type, $namespace );
 
 				}
 
@@ -121,9 +131,10 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param Type $type
+		 * @param Data_Type $type
 		 * @param null|mixed $value
-		 * @return bool
+		 *
+		 * @return boolean
 		 */
 		function is_equal( $type, $value = null ) {
 
@@ -132,7 +143,7 @@ namespace JSON_Loader {
 
 			if ( 'array' === $type_as_string && 'array' === $this->base_type ) {
 
-				$element_type = new Type( gettype( reset( $value ) ), $this->namespace );
+				$element_type = new Data_Type( gettype( reset( $value ) ) );
 
 				if ( 'mixed' === $element_type->array_of ) {
 
@@ -166,13 +177,13 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @return bool|null|string
+		 * @return boolean|null|string
 		 */
 		function element_type() {
 
 			return $this->array_of
 				? ( 'object' === $this->array_of
-					? new Type( $this->class_name, $this->namespace )
+					? new Data_Type( $this->class_name, $this->namespace )
 					: $this
 				)
 				: null;
