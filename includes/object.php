@@ -41,6 +41,9 @@ namespace JSON_Loader {
 		 */
 		private $_cached_ = array();
 
+		/**
+		 * @var bool
+		 */
 		private $_elements_instantiated_ = false;
 
 		/**
@@ -157,7 +160,7 @@ namespace JSON_Loader {
 				/*
 				 * Expand any arrays and instantiate any objects that need to be instantiated.
 				 */
-				$expanded_value = $this->do_instantiate_value( $property_name, $value );
+				$this->do_instantiate_value( $property_name, $value );
 //				if ( $value !== $expanded_value ) {
 //
 //					$this->set_value( $property_name, $expanded_value );

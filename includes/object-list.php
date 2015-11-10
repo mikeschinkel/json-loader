@@ -5,7 +5,7 @@ namespace JSON_Loader {
 	/**
 	 * Class Object_List
 	 *
-	 * @package WPLib_CLI
+	 * @package JSON_Loader
 	 *
 	 */
 	class Object_List extends \ArrayObject {
