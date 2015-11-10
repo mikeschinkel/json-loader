@@ -9,8 +9,6 @@ namespace JSON_Loader {
 	 *
 	 * @package JSON_Loader
 	 *
-	 * @property string $root_dir
-	 * @property string $root_object
 	 * @property string $object_unique_id
 	 */
 	abstract class Generator extends Base {
@@ -55,22 +53,11 @@ namespace JSON_Loader {
 		var $parent;
 
 		/**
-		 * @var \JSON_Loader\Object Root object
-		 */
-		static $root_generator;
-
-		/**
 		 * @param Object $object
 		 * @param Generator $parent
 		 * @param array $args
 		 */
 		function __construct( $object, $parent, $args = array() ) {
-
-			if ( ! isset( self::$root_generator ) ) {
-
-				self::$root_generator = $this;
-
-			}
 
 			$this->initialize( $object, $parent );
 
@@ -158,15 +145,6 @@ namespace JSON_Loader {
 		function get_constant( $constant_name ) {
 
 			return Util::get_constant( $constant_name, get_class( $this ) );
-
-		}
-
-		/**
-		 * @return Object
-		 */
-		function root_generator() {
-
-			return self::$root_generator;
 
 		}
 
@@ -447,7 +425,7 @@ namespace JSON_Loader {
 								 */
 								require( dirname( $template_file ) . "/includes/{$match[4]}.php" );
 
-								$include[] = $match[ 2 ] . ltrim( implode( "\n", array_map( function( $line ) use( $match ) {
+								$include[] = $match[ 2 ] . ltrim( implode( array_map( function( $line ) use( $match ) {
 									return "{$match[ 3 ]}{$line}";
 								}, explode( "\n", ob_get_clean() ) ) ) );
 

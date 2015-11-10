@@ -242,7 +242,7 @@ namespace JSON_Loader {
 		 *
 		 * @return string
 		 */
-		static function get_prefixed_identifier( $identifier, $prefix ) {
+		static function prepend_prefix( $identifier, $prefix ) {
 
 			/**
 			 * Convert all identifiers to using lowercase and underscores
