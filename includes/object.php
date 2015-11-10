@@ -938,8 +938,12 @@ namespace JSON_Loader {
 					if ( empty( $class_name ) ) {
 						$class_name = get_class( $this );
 					}
-					Util::log_error( "There is no property \"{$property_name}\" in any of these class(es): {$class_name}." );
 
+					if ( false === strpos( $class_name, ',' ) ) {
+						Util::log_error( "There is no property \"{$property_name}\" in the class {$class_name}." );
+					} else {
+						Util::log_error( "There is no property \"{$property_name}\" in any of these class(es): {$class_name}." );
+					}
 				}
 
 				Util::pop_class();
