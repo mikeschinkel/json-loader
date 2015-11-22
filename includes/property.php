@@ -3,7 +3,7 @@
 /**
  * Namespace JSON_Loader
  */
-namespace JSON_Loader {
+namespace JsonLoader {
 
 	/**
 	 * Class Property

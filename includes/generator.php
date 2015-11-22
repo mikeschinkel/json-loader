@@ -1,8 +1,8 @@
 <?php
 
-namespace JSON_Loader {
+namespace JsonLoader {
 
-	use JSON_Loader;
+	use JsonLoader;
 
 	/**
 	 * Class Generator
@@ -33,7 +33,7 @@ namespace JSON_Loader {
 		var $dirs = array();
 
 		/**
-		 * @var \JSON_Loader\Object|array
+		 * @var \JsonLoader\Object|array
 		 */
 		var $object;
 
@@ -65,7 +65,7 @@ namespace JSON_Loader {
 		}
 
 		/**
-		 * @param \JSON_Loader\Object $object
+		 * @param \JsonLoader\Object $object
 		 * @param Generator $parent
 		 */
 		static function generate( $object, $parent = null ) {
@@ -150,7 +150,7 @@ namespace JSON_Loader {
 
 		/**
 		 * @param string $generator_slug
-		 * @param \JSON_Loader\Object|array $value
+		 * @param \JsonLoader\Object|array $value
 		 * @param array $args {
 		 *
 		 * @type string|boolean $generator_class
@@ -296,6 +296,12 @@ namespace JSON_Loader {
 
 			}
 
+			$dirs = array_map( function( $dir ) {
+
+				return getcwd() . $dir;
+
+			}, $dirs );
+
 			$this->dirs = $dirs;
 
 		}
@@ -439,6 +445,8 @@ namespace JSON_Loader {
 					}
 
 				}
+
+				Util::ensure_dir( dirname( $filepath ) );
 
 				file_put_contents( $filepath, $source );
 
@@ -849,7 +857,7 @@ namespace JSON_Loader {
 		 *
 		 * @param Property[]|boolean $properties
 		 *
-		 * @return boolean|JSON_Loader\Property[]
+		 * @return boolean|JsonLoader\Property[]
 		 */
 		function filter_redundant( $properties = false ) {
 

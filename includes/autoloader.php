@@ -1,6 +1,6 @@
 <?php
 
-namespace JSON_Loader;
+namespace JsonLoader;
 
 /**
  * Autoloads classes from the /classes subdirectory.

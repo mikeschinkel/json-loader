@@ -1,6 +1,6 @@
 <?php
 
-namespace JSON_Loader {
+namespace JsonLoader {
 
 	class Loader {
 
@@ -32,10 +32,11 @@ namespace JSON_Loader {
 		 * @param string $filepath
 		 * @param callable $class_factory
 		 * @param array $args {
-		 *      @type boolean|Logger $logger
+		 *
+*@type boolean|Logger $logger
 		 *      @type boolean|Object $parent
 		 * }
-		 * @return \JSON_Loader\Object
+		 * @return \JsonLoader\Object
 		 */
 		function load( $filepath, $class_factory, $args = array() ) {
 

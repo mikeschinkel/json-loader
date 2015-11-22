@@ -1,8 +1,8 @@
 <?php
 
-namespace JSON_Loader {
+namespace JsonLoader {
 
-	use JSON_Loader;
+	use JsonLoader;
 
 	/**
 	 * Class Util
@@ -393,7 +393,9 @@ namespace JSON_Loader {
 
 			$reflector = new \ReflectionClass( is_object( $class ) ? get_class( $class ) : $class );
 
-			return dirname( dirname( $reflector->getFileName() ) ) . '/templates';
+			$dir = dirname( dirname( $reflector->getFileName() ) ) . '/templates';
+
+			return $dir;
 
 		}
 
@@ -534,6 +536,33 @@ namespace JSON_Loader {
 			}, explode( '|', $data_type ) );
 
 			return $data_types;
+
+		}
+
+		/**
+		 * @param string $dir
+		 */
+		static function ensure_dir( $dir ) {
+
+			do {
+
+				if ( empty( $dir ) ) {
+					break;
+				}
+
+				if ( '/' === $dir ) {
+					break;
+				}
+
+				if ( is_dir( $dir ) ) {
+					break;
+				}
+
+				self::ensure_dir( dirname( $dir ) );
+
+				mkdir( $dir );
+
+			} while ( false );
 
 		}
 
