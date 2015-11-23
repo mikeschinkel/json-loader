@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Namespace JSON_Loader
+ * Namespace JsonLoader
  */
 namespace JsonLoader {
 
@@ -10,7 +10,7 @@ namespace JsonLoader {
 	/**
 	 * Class Property
 	 *
-	 * @package JSON_Loader
+	 * @package JsonLoader
 	 */
 	class Data_Type extends Base {
 

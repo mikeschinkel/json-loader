@@ -3,7 +3,7 @@
 /**
  * Loads JSON into defined classes to enable default values, data cleansing, validation, etc.
  *
- * @package   JSON_Loader
+ * @package   JsonLoader
  * @author    The WPLib Team <http://wplib.org>
  * @copyright 2015 NewClarity Consulting LLC
  * @license   https://en.wikipedia.org/wiki/MIT_License

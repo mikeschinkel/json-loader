@@ -5,7 +5,7 @@ namespace JsonLoader {
 	/**
 	 * Class Object_List
 	 *
-	 * @package JSON_Loader
+	 * @package JsonLoader
 	 *
 	 */
 	class Object_List extends \ArrayObject {

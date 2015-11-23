@@ -7,7 +7,7 @@ namespace JsonLoader {
 	/**
 	 * Class Generator
 	 *
-	 * @package JSON_Loader
+	 * @package JsonLoader
 	 *
 	 * @property string $object_unique_id
 	 */

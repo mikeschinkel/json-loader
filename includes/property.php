@@ -1,14 +1,14 @@
 <?php
 
 /**
- * Namespace JSON_Loader
+ * Namespace JsonLoader
  */
 namespace JsonLoader {
 
 	/**
 	 * Class Property
 	 *
-	 * @package JSON_Loader
+	 * @package JsonLoader
 	 *
 	 * @property mixed $value
 	 */
@@ -136,7 +136,7 @@ namespace JsonLoader {
 
 			$args['data_types'] = array();
 
-			$type_args = array_intersect_key( $args, get_class_vars( 'JSON_Loader\Data_Type' ) );
+			$type_args = array_intersect_key( $args, get_class_vars( 'JsonLoader\Data_Type' ) );
 
 			if ( ! is_array( $data_types ) ) {
 

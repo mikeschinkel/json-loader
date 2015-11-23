@@ -14,7 +14,7 @@ namespace JsonLoader {
 	 * This architecture is so special so a method named the same as the JSON property can be used to validate, sanitize
 	 * and/or transform the property value without having to reserve any method names.
 	 *
-	 * @package JSON_Loader
+	 * @package JsonLoader
 	 *
 	 * @method mixed _property_filter_( mixed $value, Property $property )
 	 *
