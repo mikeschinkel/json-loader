@@ -12,10 +12,10 @@ namespace JsonLoader {
 	 *
 	 * @package JsonLoader
 	 */
-	class Data_Type extends Base {
+	class DataType extends Base {
 
 		/**
-		 * @var string Data_Type as PHPDocumented
+		 * @var string DataType as PHPDocumented
 		 */
 		var $doc_type = 'string';
 
@@ -131,7 +131,7 @@ namespace JsonLoader {
 		}
 
 		/**
-		 * @param Data_Type $type
+		 * @param DataType $type
 		 * @param null|mixed $value
 		 *
 		 * @return boolean
@@ -143,7 +143,7 @@ namespace JsonLoader {
 
 			if ( 'array' === $type_as_string && 'array' === $this->base_type ) {
 
-				$element_type = new Data_Type( gettype( reset( $value ) ) );
+				$element_type = new DataType( gettype( reset( $value ) ) );
 
 				if ( 'mixed' === $element_type->array_of ) {
 
@@ -183,7 +183,7 @@ namespace JsonLoader {
 
 			return $this->array_of
 				? ( 'object' === $this->array_of
-					? new Data_Type( $this->class_name, $this->namespace )
+					? new DataType( $this->class_name, $this->namespace )
 					: $this
 				)
 				: null;

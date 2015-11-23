@@ -102,18 +102,18 @@ namespace JsonLoader {
 		var $explode = false;
 
 		/**
-		 * @var Data_Type[]
+		 * @var DataType[]
 		 */
 		var $data_types;
 
 		/**
-		 * @var Data_Type
+		 * @var DataType
 		 */
 		var $default_type;
 
 		/**
 		 * @param string $property_name
-		 * @param string|string[]|Data_Type|Data_Type[] $data_types
+		 * @param string|string[]|DataType|DataType[] $data_types
 		 * @param array $args
 		 *
 		 * @return static
@@ -127,7 +127,7 @@ namespace JsonLoader {
 		}
 		/**
 		 * @param string $property_name
-		 * @param string|string[]|Data_Type|Data_Type[] $data_types
+		 * @param string|string[]|DataType|DataType[] $data_types
 		 * @param array $args
 		 */
 		function __construct( $property_name, $data_types, $args = array() ) {
@@ -136,7 +136,7 @@ namespace JsonLoader {
 
 			$args['data_types'] = array();
 
-			$type_args = array_intersect_key( $args, get_class_vars( 'JsonLoader\Data_Type' ) );
+			$type_args = array_intersect_key( $args, get_class_vars( 'JsonLoader\DataType' ) );
 
 			if ( ! is_array( $data_types ) ) {
 
@@ -153,7 +153,7 @@ namespace JsonLoader {
 				}
 
 				$args['data_types'][ (string) $data_type ]
-					= Data_Type::make_new( $data_type, $type_args );
+					= DataType::make_new( $data_type, $type_args );
 
 			}
 
@@ -182,7 +182,7 @@ namespace JsonLoader {
 		/**
 		 * @param $value
 		 *
-		 * @return Data_Type
+		 * @return DataType
 		 */
 		function get_data_type( $value ) {
 
@@ -192,7 +192,7 @@ namespace JsonLoader {
 
 			} else {
 
-				$value_type = new Data_Type( gettype( $value ), array(
+				$value_type = new DataType( gettype( $value ), array(
 					'namespace' => $this->namespace,
 				));
 

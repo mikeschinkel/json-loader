@@ -242,7 +242,7 @@ namespace JsonLoader {
 
 			if ( is_array( $value ) ) {
 
-				$this->generators[ $generator_slug ] = new Array_Generator( $generator_class, $value, $this, array(
+				$this->generators[ $generator_slug ] = new ArrayGenerator( $generator_class, $value, $this, array(
 
 					'property_name' => Util::underscorify( $args['element_slug'] ),
 

@@ -3,9 +3,9 @@
 namespace JsonLoader {
 
 	/**
-	 * Class Array_Generator
+	 * Class ArrayGenerator
 	 */
-	class Array_Generator {
+	class ArrayGenerator {
 
 		var $generator_class;
 

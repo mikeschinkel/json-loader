@@ -3,12 +3,12 @@
 namespace JsonLoader {
 
 	/**
-	 * Class Object_List
+	 * Class ObjectList
 	 *
 	 * @package JsonLoader
 	 *
 	 */
-	class Object_List extends \ArrayObject {
+	class ObjectList extends \ArrayObject {
 
 		/**
 		 * Process each element via a callback and implode the results.
