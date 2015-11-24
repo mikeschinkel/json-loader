@@ -1,7 +1,7 @@
 {
 	"name": "wplib/json-loader",
 	"type": "library",
-	"description": "PHP Library that allows for Allows for loading JSON into a structured, initialized, defaulted, validated set of PHP objects.",
+	"description": "PHP Library that allows for loading JSON into a structured, initialized, defaulted, validated set of PHP objects.",
 	"keywords": [ "json", "php", "library", "config", "loader" ],
 	"homepage": "http://github.com/wplib/json-loader",
  	"license": "MIT",
